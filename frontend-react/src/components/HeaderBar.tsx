@@ -1,5 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
+import {
+  PanelLeft,
+  PanelRight,
+  FolderOpen,
+  Search,
+  RefreshCw,
+  ChevronDown,
+} from 'lucide-react';
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -80,16 +88,14 @@ export const HeaderBar: React.FC = () => {
       <div className="flex items-center space-x-2">
         <button
           onClick={() => setLeftPanelOpen((prev) => !prev)}
-          className={`p-1 rounded-[3px] transition-colors ${
+          className={`p-1.5 rounded-[3px] transition-colors flex items-center justify-center ${
             leftPanelOpen
               ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
               : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838]'
           }`}
           title="Toggle Project Explorer (Ctrl+B)"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            view_sidebar
-          </span>
+          <PanelLeft size={15} />
         </button>
 
         <div className="flex items-center space-x-1.5 pr-2">
@@ -147,9 +153,7 @@ export const HeaderBar: React.FC = () => {
             className="flex items-center space-x-1.5 px-2 py-0.5 rounded-[3px] hover:bg-[#383838] text-[11px] font-mono text-[#cccccc] hover:text-[#ffffff] transition-colors border border-transparent hover:border-[#3e3e42]"
             title="Open Python Repository / Change Folder"
           >
-            <span className="material-symbols-outlined text-[#858585]" style={{ fontSize: 14 }}>
-              folder_open
-            </span>
+            <FolderOpen size={14} className="text-[#858585]" />
             <span className="truncate max-w-[200px] font-medium text-[#cccccc]">{repoName}</span>
             <span className="text-[10px] text-[#858585] hidden sm:inline">({projectPath.slice(-22)})</span>
           </button>
@@ -164,12 +168,7 @@ export const HeaderBar: React.FC = () => {
           title="Search symbols, functions & classes (Ctrl+K)"
         >
           <div className="flex items-center space-x-2 truncate">
-            <span
-              className="material-symbols-outlined text-[#858585] group-hover:text-[#007acc]"
-              style={{ fontSize: 13 }}
-            >
-              search
-            </span>
+            <Search size={13} className="text-[#858585] group-hover:text-[#007acc]" />
             <span className="font-mono text-[11px] truncate">Search symbols, functions, classes...</span>
           </div>
           <kbd className="bg-[#2d2d2d] text-[#858585] group-hover:text-[#cccccc] px-1.5 py-0.2 rounded-[2px] text-[10px] font-mono border border-[#3e3e42]">
@@ -207,12 +206,10 @@ export const HeaderBar: React.FC = () => {
         {/* Refresh button with force refresh */}
         <button
           onClick={() => loadProject(projectPath, true)}
-          className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838] rounded-[3px] transition-colors"
+          className="p-1.5 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838] rounded-[3px] transition-colors flex items-center justify-center"
           title="Force Re-analyze Project AST (Clears Cache)"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            refresh
-          </span>
+          <RefreshCw size={14} />
         </button>
 
         {/* Export Dropdown */}
@@ -222,9 +219,7 @@ export const HeaderBar: React.FC = () => {
             className="px-2 py-0.5 bg-[#333333] hover:bg-[#3e3e42] text-[#cccccc] hover:text-[#ffffff] border border-[#3e3e42] rounded-[3px] text-[11px] font-sans flex items-center gap-1 transition-colors"
           >
             <span>Export</span>
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-              arrow_drop_down
-            </span>
+            <ChevronDown size={13} />
           </button>
 
           {exportOpen && (
@@ -257,16 +252,14 @@ export const HeaderBar: React.FC = () => {
         {/* Inspector Panel Toggle */}
         <button
           onClick={() => setRightPanelOpen((prev) => !prev)}
-          className={`p-1 rounded-[3px] transition-colors ${
+          className={`p-1.5 rounded-[3px] transition-colors flex items-center justify-center ${
             rightPanelOpen
               ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
               : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838]'
           }`}
           title="Toggle Symbol Inspector (Ctrl+J)"
         >
-          <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-            dock_to_left
-          </span>
+          <PanelRight size={15} />
         </button>
       </div>
     </header>

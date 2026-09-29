@@ -1,6 +1,106 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
 import type { GraphNode, AnalysisMode } from '../types';
+import {
+  Boxes,
+  Crosshair,
+  RotateCcw,
+  AlertTriangle,
+  Eye,
+  EyeOff,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Hand,
+  GripVertical,
+  AlertCircle,
+  FolderOpen,
+} from 'lucide-react';
+
+const CARD_WIDTH = 220;
+const CARD_HEIGHT = 74;
+
+/**
+ * Robust adaptive cubic bezier calculation that anchors cables cleanly to
+ * whichever card edge (left, right, top, bottom) makes geometric sense,
+ * preventing cable detachment or backward distortion when dragging nodes anywhere.
+ */
+function computeEdgePath(
+  sourcePos: { x: number; y: number },
+  targetPos: { x: number; y: number }
+): string {
+  const w = CARD_WIDTH;
+  const h = CARD_HEIGHT;
+
+  const srcCenter = { x: sourcePos.x + w / 2, y: sourcePos.y + h / 2 };
+  const tgtCenter = { x: targetPos.x + w / 2, y: targetPos.y + h / 2 };
+
+  const dx = tgtCenter.x - srcCenter.x;
+  const dy = tgtCenter.y - srcCenter.y;
+
+  let startX: number;
+  let startY: number;
+  let endX: number;
+  let endY: number;
+  let cp1X: number;
+  let cp1Y: number;
+  let cp2X: number;
+  let cp2Y: number;
+
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    // Horizontal dominant
+    if (dx >= 0) {
+      // Source right -> Target left
+      startX = sourcePos.x + w;
+      startY = sourcePos.y + h / 2;
+      endX = targetPos.x;
+      endY = targetPos.y + h / 2;
+      const dist = Math.max(Math.min((endX - startX) * 0.45, 140), 30);
+      cp1X = startX + dist;
+      cp1Y = startY;
+      cp2X = endX - dist;
+      cp2Y = endY;
+    } else {
+      // Source left -> Target right
+      startX = sourcePos.x;
+      startY = sourcePos.y + h / 2;
+      endX = targetPos.x + w;
+      endY = targetPos.y + h / 2;
+      const dist = Math.max(Math.min((startX - endX) * 0.45, 140), 30);
+      cp1X = startX - dist;
+      cp1Y = startY;
+      cp2X = endX + dist;
+      cp2Y = endY;
+    }
+  } else {
+    // Vertical dominant
+    if (dy >= 0) {
+      // Source bottom -> Target top
+      startX = sourcePos.x + w / 2;
+      startY = sourcePos.y + h;
+      endX = targetPos.x + w / 2;
+      endY = targetPos.y;
+      const dist = Math.max(Math.min((endY - startY) * 0.45, 120), 25);
+      cp1X = startX;
+      cp1Y = startY + dist;
+      cp2X = endX;
+      cp2Y = endY - dist;
+    } else {
+      // Source top -> Target bottom
+      startX = sourcePos.x + w / 2;
+      startY = sourcePos.y;
+      endX = targetPos.x + w / 2;
+      endY = targetPos.y + h;
+      const dist = Math.max(Math.min((startY - endY) * 0.45, 120), 25);
+      cp1X = startX;
+      cp1Y = startY - dist;
+      cp2X = endX;
+      cp2Y = endY + dist;
+    }
+  }
+
+  return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+}
 
 export const HeroCanvas: React.FC = () => {
   const {
@@ -36,6 +136,15 @@ export const HeroCanvas: React.FC = () => {
   const [containerSize, setContainerSize] = useState({ width: 1200, height: 800 });
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
 
+  // High performance local positions map for zero-delay dragging
+  const [localPositions, setLocalPositions] = useState<Record<string, { x: number; y: number }>>(
+    nodeCustomPositions
+  );
+
+  useEffect(() => {
+    setLocalPositions(nodeCustomPositions);
+  }, [nodeCustomPositions]);
+
   // Pan dragging state
   const isPanning = useRef(false);
   const panStart = useRef({ x: 0, y: 0 });
@@ -43,15 +152,18 @@ export const HeroCanvas: React.FC = () => {
   const clickStartPos = useRef({ x: 0, y: 0 });
   const [isCurrentlyPanning, setIsCurrentlyPanning] = useState(false);
 
-  // Node dragging state
-  const draggedNode = useRef<{
+  // Smooth node dragging ref
+  const dragInfo = useRef<{
     id: string;
     startMouseX: number;
     startMouseY: number;
     startNodeX: number;
     startNodeY: number;
+    currentX: number;
+    currentY: number;
   } | null>(null);
 
+  const rafId = useRef<number | null>(null);
   const [activeDraggingId, setActiveDraggingId] = useState<string | null>(null);
 
   // ResizeObserver for dynamic adaptive sizing
@@ -115,12 +227,12 @@ export const HeroCanvas: React.FC = () => {
     return posMap;
   }, [nodes, containerSize]);
 
-  // Merge base positions with user-dragged custom positions
+  // Merge base positions with user-dragged local positions
   const effectivePositions = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
     nodes.forEach((n) => {
-      if (nodeCustomPositions[n.id]) {
-        map.set(n.id, nodeCustomPositions[n.id]);
+      if (localPositions[n.id]) {
+        map.set(n.id, localPositions[n.id]);
       } else if (baseNodePositions.has(n.id)) {
         map.set(n.id, baseNodePositions.get(n.id)!);
       } else {
@@ -128,7 +240,7 @@ export const HeroCanvas: React.FC = () => {
       }
     });
     return map;
-  }, [nodes, baseNodePositions, nodeCustomPositions]);
+  }, [nodes, baseNodePositions, localPositions]);
 
   // Center & Fit View calculation
   const handleFitView = useCallback(() => {
@@ -140,9 +252,9 @@ export const HeroCanvas: React.FC = () => {
 
     effectivePositions.forEach((pos) => {
       minX = Math.min(minX, pos.x);
-      maxX = Math.max(maxX, pos.x + 220);
+      maxX = Math.max(maxX, pos.x + CARD_WIDTH);
       minY = Math.min(minY, pos.y);
-      maxY = Math.max(maxY, pos.y + 100);
+      maxY = Math.max(maxY, pos.y + CARD_HEIGHT);
     });
 
     if (minX === Infinity) return;
@@ -197,7 +309,88 @@ export const HeroCanvas: React.FC = () => {
     return new Set(deadFunctions.map((df) => df.id || df.name));
   }, [deadFunctions]);
 
-  // Mouse drag handling (Pan canvas or Drag node)
+  // Window-level mouse handling for ultra-smooth 60/120 FPS node dragging & panning
+  useEffect(() => {
+    const onWindowMouseMove = (e: MouseEvent) => {
+      // 1. Dragging Node (RAF batching for zero lag)
+      if (dragInfo.current) {
+        const dx = (e.clientX - dragInfo.current.startMouseX) / zoom;
+        const dy = (e.clientY - dragInfo.current.startMouseY) / zoom;
+        if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+          hasMovedPan.current = true;
+        }
+
+        const newX = Math.round(dragInfo.current.startNodeX + dx);
+        const newY = Math.round(dragInfo.current.startNodeY + dy);
+        dragInfo.current.currentX = newX;
+        dragInfo.current.currentY = newY;
+
+        if (!rafId.current) {
+          rafId.current = requestAnimationFrame(() => {
+            if (dragInfo.current) {
+              setLocalPositions((prev) => ({
+                ...prev,
+                [dragInfo.current!.id]: {
+                  x: dragInfo.current!.currentX,
+                  y: dragInfo.current!.currentY,
+                },
+              }));
+            }
+            rafId.current = null;
+          });
+        }
+        return;
+      }
+
+      // 2. Panning Canvas
+      if (isPanning.current) {
+        const dx = e.clientX - clickStartPos.current.x;
+        const dy = e.clientY - clickStartPos.current.y;
+        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+          hasMovedPan.current = true;
+        }
+        setPanOffset({
+          x: e.clientX - panStart.current.x,
+          y: e.clientY - panStart.current.y,
+        });
+      }
+    };
+
+    const onWindowMouseUp = () => {
+      if (rafId.current) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+
+      // Sync final position to context
+      if (dragInfo.current) {
+        updateNodePosition(dragInfo.current.id, {
+          x: dragInfo.current.currentX,
+          y: dragInfo.current.currentY,
+        });
+      }
+
+      // Click on background canvas (without dragging) minimizes sidebars
+      if (isPanning.current && !hasMovedPan.current) {
+        minimizeAllPanels();
+      }
+
+      isPanning.current = false;
+      setIsCurrentlyPanning(false);
+      dragInfo.current = null;
+      setActiveDraggingId(null);
+    };
+
+    window.addEventListener('mousemove', onWindowMouseMove, { passive: true });
+    window.addEventListener('mouseup', onWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', onWindowMouseMove);
+      window.removeEventListener('mouseup', onWindowMouseUp);
+      if (rafId.current) cancelAnimationFrame(rafId.current);
+    };
+  }, [zoom, updateNodePosition, minimizeAllPanels]);
+
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (e.target !== containerRef.current && (e.target as HTMLElement).tagName !== 'svg') {
       return;
@@ -221,55 +414,16 @@ export const HeroCanvas: React.FC = () => {
     selectNode(node);
 
     const currentPos = effectivePositions.get(node.id) || { x: 0, y: 0 };
-    draggedNode.current = {
+    dragInfo.current = {
       id: node.id,
       startMouseX: e.clientX,
       startMouseY: e.clientY,
       startNodeX: currentPos.x,
       startNodeY: currentPos.y,
+      currentX: currentPos.x,
+      currentY: currentPos.y,
     };
     setActiveDraggingId(node.id);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    // 1. Dragging Node
-    if (draggedNode.current) {
-      const dx = (e.clientX - draggedNode.current.startMouseX) / zoom;
-      const dy = (e.clientY - draggedNode.current.startMouseY) / zoom;
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-        hasMovedPan.current = true;
-      }
-      updateNodePosition(draggedNode.current.id, {
-        x: Math.round(draggedNode.current.startNodeX + dx),
-        y: Math.round(draggedNode.current.startNodeY + dy),
-      });
-      return;
-    }
-
-    // 2. Panning Canvas
-    if (isPanning.current) {
-      const dx = e.clientX - clickStartPos.current.x;
-      const dy = e.clientY - clickStartPos.current.y;
-      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-        hasMovedPan.current = true;
-      }
-      setPanOffset({
-        x: e.clientX - panStart.current.x,
-        y: e.clientY - panStart.current.y,
-      });
-    }
-  };
-
-  const handleMouseUp = () => {
-    // Click on background canvas (without dragging) minimizes sidebars
-    if (isPanning.current && !hasMovedPan.current) {
-      minimizeAllPanels();
-    }
-
-    isPanning.current = false;
-    setIsCurrentlyPanning(false);
-    draggedNode.current = null;
-    setActiveDraggingId(null);
   };
 
   // Canvas zoom with mouse wheel
@@ -288,13 +442,9 @@ export const HeroCanvas: React.FC = () => {
       ref={containerRef}
       id="canvasContainer"
       className={`absolute inset-0 w-full h-full bg-[#1e1e1e] overflow-hidden select-none ${
-        activeDraggingId || isCurrentlyPanning
-          ? 'cursor-grabbing'
-          : 'cursor-grab'
+        activeDraggingId || isCurrentlyPanning ? 'cursor-grabbing' : 'cursor-grab'
       }`}
       onMouseDown={handleCanvasMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
       onWheel={handleWheel}
     >
       {/* VS Code Subtle Dot Grid Background */}
@@ -309,9 +459,7 @@ export const HeroCanvas: React.FC = () => {
       {/* TOP FLOATING OPTIONS HUD */}
       <div
         className={`absolute top-14 left-1/2 -translate-x-1/2 z-30 transition-all duration-200 pointer-events-auto ${
-          isDimmed
-            ? 'opacity-25 hover:opacity-100 scale-95'
-            : 'opacity-100 scale-100'
+          isDimmed ? 'opacity-25 hover:opacity-100 scale-95' : 'opacity-100 scale-100'
         }`}
       >
         <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2.5 py-1 shadow-lg flex items-center gap-2">
@@ -329,28 +477,26 @@ export const HeroCanvas: React.FC = () => {
           <div className="flex items-center gap-1 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
             {(
               [
-                { id: 'default', label: 'Architecture', icon: 'account_tree' },
-                { id: 'impact', label: 'Impact', icon: 'radar' },
-                { id: 'cycles', label: 'Cycles', icon: 'change_circle' },
-                { id: 'deadcode', label: 'Dead Code', icon: 'remove_done' },
+                { id: 'default', label: 'Architecture', Icon: Boxes },
+                { id: 'impact', label: 'Impact', Icon: Crosshair },
+                { id: 'cycles', label: 'Cycles', Icon: RotateCcw },
+                { id: 'deadcode', label: 'Dead Code', Icon: AlertTriangle },
               ] as const
-            ).map((m) => {
-              const active = analysisMode === m.id;
+            ).map(({ id, label, Icon }) => {
+              const active = analysisMode === id;
               return (
                 <button
-                  key={m.id}
-                  onClick={() => setAnalysisMode(m.id as AnalysisMode)}
-                  className={`px-2 py-0.5 rounded-[2px] text-[11px] font-sans flex items-center gap-1 transition-colors ${
+                  key={id}
+                  onClick={() => setAnalysisMode(id as AnalysisMode)}
+                  className={`px-2 py-0.5 rounded-[2px] text-[11px] font-sans flex items-center gap-1.5 transition-colors ${
                     active
                       ? 'bg-[#094771] text-[#ffffff] font-medium border border-[#007acc]'
                       : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
                   }`}
-                  title={`${m.label} Mode`}
+                  title={`${label} Mode`}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-                    {m.icon}
-                  </span>
-                  <span className="hidden sm:inline">{m.label}</span>
+                  <Icon size={13} />
+                  <span className="hidden sm:inline">{label}</span>
                 </button>
               );
             })}
@@ -389,9 +535,7 @@ export const HeroCanvas: React.FC = () => {
             className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors text-[11px]"
             title="Auto-organize / Reset Node Layout"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              reorder
-            </span>
+            <RotateCcw size={14} />
           </button>
 
           {/* Focus / Zen Mode Button */}
@@ -404,9 +548,7 @@ export const HeroCanvas: React.FC = () => {
             }`}
             title={focusMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              {focusMode ? 'visibility_off' : 'center_focus_strong'}
-            </span>
+            {focusMode ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         </div>
       </div>
@@ -423,9 +565,7 @@ export const HeroCanvas: React.FC = () => {
             className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
             title="Zoom Out"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              remove
-            </span>
+            <ZoomOut size={14} />
           </button>
 
           <span
@@ -441,9 +581,7 @@ export const HeroCanvas: React.FC = () => {
             className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
             title="Zoom In"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              add
-            </span>
+            <ZoomIn size={14} />
           </button>
 
           <div className="h-4 w-[1px] bg-[#3e3e42] mx-0.5" />
@@ -453,9 +591,7 @@ export const HeroCanvas: React.FC = () => {
             className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
             title="Fit Graph to Screen"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              fit_screen
-            </span>
+            <Maximize2 size={14} />
           </button>
 
           <button
@@ -467,9 +603,7 @@ export const HeroCanvas: React.FC = () => {
             }`}
             title="Toggle Pan Hand Tool"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              pan_tool
-            </span>
+            <Hand size={14} />
           </button>
         </div>
       </div>
@@ -487,7 +621,7 @@ export const HeroCanvas: React.FC = () => {
             </div>
           ) : error ? (
             <div className="bg-[#252526] border border-[#f14c4c]/40 rounded-[3px] p-6 shadow-xl max-w-md flex flex-col items-center gap-3">
-              <span className="material-symbols-outlined text-[#f14c4c] text-3xl">error</span>
+              <AlertCircle size={28} className="text-[#f14c4c]" />
               <div className="text-xs font-semibold text-[#ffffff]">Architecture Analysis Error</div>
               <p className="text-[11px] text-[#858585] leading-relaxed font-mono">
                 {error}
@@ -501,7 +635,7 @@ export const HeroCanvas: React.FC = () => {
             </div>
           ) : (
             <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] p-6 shadow-xl max-w-sm flex flex-col items-center gap-3">
-              <span className="material-symbols-outlined text-[#858585] text-3xl">folder_off</span>
+              <FolderOpen size={28} className="text-[#858585]" />
               <div className="text-xs font-semibold text-[#ffffff]">No Python Symbols Discovered</div>
               <p className="text-[11px] text-[#858585] leading-relaxed">
                 No valid Python files were detected in this folder. Open another folder or select the sample project.
@@ -570,19 +704,8 @@ export const HeroCanvas: React.FC = () => {
             const targetPos = effectivePositions.get(edge.target);
             if (!sourcePos || !targetPos) return null;
 
-            // Connection points: right edge of source card to left edge of target card
-            const startX = sourcePos.x + 220;
-            const startY = sourcePos.y + 36;
-            const endX = targetPos.x;
-            const endY = targetPos.y + 36;
-
-            const dx = endX - startX;
-            const cp1X = startX + Math.max(dx * 0.45, 40);
-            const cp1Y = startY;
-            const cp2X = endX - Math.max(dx * 0.45, 40);
-            const cp2Y = endY;
-
-            const d = `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+            // Dynamically computed edge path anchored perfectly to card perimeters
+            const d = computeEdgePath(sourcePos, targetPos);
 
             const isEdgeActive =
               selectedNode &&
@@ -641,7 +764,7 @@ export const HeroCanvas: React.FC = () => {
           let opacityClass = 'opacity-100';
 
           if (isDragging) {
-            borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-xl';
+            borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-2xl';
             bgClass = 'bg-[#2d2d30]';
           } else if (isSelected) {
             borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-lg';
@@ -662,9 +785,10 @@ export const HeroCanvas: React.FC = () => {
               onMouseDown={(e) => handleNodeMouseDown(e, node)}
               style={{
                 transform: `translate(${pos.x}px, ${pos.y}px)`,
-                width: '220px',
+                width: `${CARD_WIDTH}px`,
+                willChange: isDragging ? 'transform' : 'auto',
               }}
-              className={`absolute top-0 left-0 rounded-[3px] border p-2.5 cursor-grab active:cursor-grabbing transition-all duration-150 select-none shadow-md pointer-events-auto ${borderClass} ${bgClass} ${opacityClass}`}
+              className={`absolute top-0 left-0 rounded-[3px] border p-2.5 cursor-grab active:cursor-grabbing transition-shadow duration-150 select-none shadow-md pointer-events-auto ${borderClass} ${bgClass} ${opacityClass}`}
             >
               {/* Header: Kind Badge, Tier & File */}
               <div className="flex items-center justify-between mb-1.5 pointer-events-none gap-1">
@@ -698,12 +822,10 @@ export const HeroCanvas: React.FC = () => {
                   </span>
                   <span className="text-[#858585] font-normal">()</span>
                 </div>
-                <span
-                  className="material-symbols-outlined text-[#858585] opacity-0 group-hover:opacity-100"
-                  style={{ fontSize: 13 }}
-                >
-                  drag_indicator
-                </span>
+                <GripVertical
+                  size={13}
+                  className="text-[#858585] opacity-0 group-hover:opacity-100 flex-shrink-0"
+                />
               </div>
 
               {/* Sub-meta: Lines, params, and Cyclomatic Complexity */}

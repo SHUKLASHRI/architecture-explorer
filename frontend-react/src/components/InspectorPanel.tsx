@@ -2,6 +2,19 @@ import React, { useState } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
+import {
+  Terminal,
+  Crosshair,
+  Edit,
+  Pin,
+  X,
+  FileCode,
+  Copy,
+  Check,
+  ArrowDownLeft,
+  ArrowUpRight,
+  AlertCircle,
+} from 'lucide-react';
 
 export const InspectorPanel: React.FC = () => {
   const {
@@ -34,9 +47,7 @@ export const InspectorPanel: React.FC = () => {
         className="absolute right-3 top-14 z-40 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] px-2.5 py-1.5 shadow-lg cursor-pointer transition-colors flex items-center gap-2"
         title="Hover to peek, click to pin open (Ctrl+J)"
       >
-        <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 15 }}>
-          terminal
-        </span>
+        <Terminal size={14} className="text-[#007acc]" />
         <span className="font-mono text-xs font-medium text-[#cccccc] truncate max-w-[130px]">
           {selectedNode ? selectedNode.name : 'Inspector'}
         </span>
@@ -53,9 +64,7 @@ export const InspectorPanel: React.FC = () => {
         onMouseLeave={() => setRightPanelHovered(false)}
         className="absolute right-3 top-14 bottom-6 bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-2xl z-40 flex flex-col items-center justify-center p-6 text-center select-none"
       >
-        <span className="material-symbols-outlined text-[#858585] text-3xl mb-2">
-          ads_click
-        </span>
+        <Crosshair size={28} className="text-[#858585] mb-2" />
         <div className="text-[#ffffff] font-medium text-xs mb-1">Select a Symbol</div>
         <p className="text-[11px] text-[#858585] max-w-[210px] leading-relaxed">
           Click on any node in the architecture graph to inspect callers, callees, metrics, and source code.
@@ -125,25 +134,21 @@ export const InspectorPanel: React.FC = () => {
             className="px-1.5 py-0.5 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1 transition-colors"
             title="Safe Refactor / Rename (F2)"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-              edit
-            </span>
+            <Edit size={11} />
             <span>F2</span>
           </button>
 
           {/* Pin / Unpin button */}
           <button
             onClick={() => setRightPanelOpen((prev) => !prev)}
-            className={`p-1 rounded-[2px] transition-colors ${
+            className={`p-1 rounded-[2px] transition-colors flex items-center justify-center ${
               rightPanelOpen
                 ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
                 : 'text-[#858585] hover:text-[#ffffff] hover:bg-[#383838]'
             }`}
             title={rightPanelOpen ? 'Pinned open (Click to unpin and auto-hide)' : 'Click to pin open'}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              {rightPanelOpen ? 'push_pin' : 'keep'}
-            </span>
+            <Pin size={13} />
           </button>
 
           {/* Fold button */}
@@ -152,12 +157,10 @@ export const InspectorPanel: React.FC = () => {
               setRightPanelOpen(false);
               setRightPanelHovered(false);
             }}
-            className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] transition-colors"
+            className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] transition-colors flex items-center justify-center"
             title="Fold Inspector (Escape)"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-              close
-            </span>
+            <X size={14} />
           </button>
         </div>
       </div>
@@ -268,9 +271,7 @@ export const InspectorPanel: React.FC = () => {
 
           {/* File location */}
           <div className="text-[10px] font-mono text-[#858585] flex items-center gap-1.5 truncate pt-1 border-t border-[#2d2d2d]">
-            <span className="material-symbols-outlined text-[#858585]" style={{ fontSize: 13 }}>
-              source
-            </span>
+            <FileCode size={13} className="text-[#858585] flex-shrink-0" />
             <span className="truncate">{selectedNode.rel_path || selectedNode.file}</span>
           </div>
         </div>
@@ -281,9 +282,7 @@ export const InspectorPanel: React.FC = () => {
           <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
             <div className="text-[10px] font-mono text-[#858585] font-semibold mb-1 flex items-center justify-between">
               <span>Callers ({callers.length})</span>
-              <span className="material-symbols-outlined text-[#858585]" style={{ fontSize: 13 }}>
-                call_received
-              </span>
+              <ArrowDownLeft size={13} className="text-[#858585]" />
             </div>
             {callers.length === 0 ? (
               <div className="text-[10px] font-mono text-[#6e7681] italic">No incoming calls</div>
@@ -306,9 +305,7 @@ export const InspectorPanel: React.FC = () => {
           <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
             <div className="text-[10px] font-mono text-[#858585] font-semibold mb-1 flex items-center justify-between">
               <span>Calls ({callees.length})</span>
-              <span className="material-symbols-outlined text-[#858585]" style={{ fontSize: 13 }}>
-                call_made
-              </span>
+              <ArrowUpRight size={13} className="text-[#858585]" />
             </div>
             {callees.length === 0 ? (
               <div className="text-[10px] font-mono text-[#6e7681] italic">No outgoing calls</div>
@@ -337,9 +334,7 @@ export const InspectorPanel: React.FC = () => {
           {/* Editor Header Tab */}
           <div className="h-7 px-2.5 bg-[#2d2d2d] border-b border-[#3e3e42] flex items-center justify-between">
             <div className="flex items-center space-x-1.5 truncate">
-              <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 13 }}>
-                description
-              </span>
+              <FileCode size={13} className="text-[#007acc] flex-shrink-0" />
               <span className="text-[11px] font-mono text-[#cccccc] font-medium truncate">
                 {selectedNode.filename}
               </span>
@@ -350,9 +345,7 @@ export const InspectorPanel: React.FC = () => {
               className="px-1.5 py-0.2 rounded-[2px] text-[10px] font-mono text-[#858585] hover:text-[#cccccc] hover:bg-[#383838] transition-colors flex items-center gap-1"
               title="Copy snippet"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 12 }}>
-                {copied ? 'check' : 'content_copy'}
-              </span>
+              {copied ? <Check size={12} /> : <Copy size={12} />}
               <span>{copied ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
@@ -367,9 +360,7 @@ export const InspectorPanel: React.FC = () => {
             ) : sourceError ? (
               <div className="py-4 px-3 bg-[#2b2020] border border-[#f14c4c]/40 rounded-[2px] text-center space-y-2">
                 <div className="text-[11px] text-[#f14c4c] font-semibold flex items-center justify-center gap-1.5">
-                  <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-                    error
-                  </span>
+                  <AlertCircle size={14} />
                   <span>Source preview unavailable</span>
                 </div>
                 <p className="text-[10px] text-[#858585]">{sourceError}</p>

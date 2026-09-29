@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
-import { X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Loader2, Edit } from 'lucide-react';
 import * as api from '../api/client';
 import type { RenamePlan } from '../types';
 
@@ -95,9 +95,7 @@ export const SafeRenameModal: React.FC = () => {
         {/* Header */}
         <div className="px-4 py-3 border-b border-[#3e3e42] flex items-center justify-between bg-[#2d2d2d]">
           <div className="flex items-center space-x-2">
-            <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 16 }}>
-              edit
-            </span>
+            <Edit size={15} className="text-[#007acc]" />
             <div>
               <h3 className="text-xs font-semibold text-[#ffffff]">
                 Rename Symbol

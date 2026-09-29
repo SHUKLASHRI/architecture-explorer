@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { AlertCircle } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
@@ -32,7 +33,7 @@ export class ErrorBoundary extends Component<Props, State> {
         <div className="h-screen w-screen bg-[#1e1e1e] text-[#cccccc] flex flex-col items-center justify-center p-6 font-sans select-none">
           <div className="max-w-xl w-full bg-[#252526] border border-[#3e3e42] rounded-[3px] p-5 shadow-2xl">
             <div className="flex items-center gap-2.5 text-[#f14c4c] font-semibold text-sm mb-3">
-              <span className="material-symbols-outlined text-xl">error</span>
+              <AlertCircle size={20} className="text-[#f14c4c]" />
               <span>Workbench Rendering Error</span>
             </div>
             <p className="text-xs text-[#858585] mb-3">

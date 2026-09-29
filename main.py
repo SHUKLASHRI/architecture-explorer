@@ -63,6 +63,17 @@ if __name__ == "__main__":
     flask_thread = threading.Thread(target=_run_flask, daemon=True)
     flask_thread.start()
 
+    # Pre-warm AST cache concurrently so app opens instantaneously
+    def _prewarm():
+        try:
+            from app import _get_result, _resolve_project_path
+            p = _resolve_project_path("")
+            _get_result(p)
+        except Exception:
+            pass
+
+    threading.Thread(target=_prewarm, daemon=True).start()
+
     # Wait for it to be ready
     if not _wait_for_flask():
         print("ERROR: Flask server did not start in time.", file=sys.stderr)
@@ -82,13 +93,13 @@ if __name__ == "__main__":
 
     # Open native window (like Figma / VS Code desktop)
     window = webview.create_window(
-        title="PyArch Studio",
+        title="Architecture Explorer",
         url=f"http://localhost:{PORT}",
         width=1440,
         height=900,
         resizable=True,
         min_size=(960, 640),
-        background_color="#09090b",
+        background_color="#1e1e1e",
         js_api=api,
     )
 

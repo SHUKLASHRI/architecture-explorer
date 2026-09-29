@@ -7,6 +7,13 @@ import { InspectorPanel } from './components/InspectorPanel';
 import { SafeRenameModal } from './components/SafeRenameModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import {
+  AlertCircle,
+  AlertTriangle,
+  X,
+  FolderOpen,
+  GitBranch,
+} from 'lucide-react';
 
 const PyArchStudioApp: React.FC = () => {
   const {
@@ -74,9 +81,7 @@ const PyArchStudioApp: React.FC = () => {
       {/* VS CODE BOTTOM NOTIFICATION TOAST (Clean, non-intrusive error handling) */}
       {error && (
         <div className="absolute bottom-9 right-4 z-50 bg-[#252526] border border-[#3e3e42] text-[#cccccc] p-3 rounded-[3px] shadow-2xl flex items-start gap-2.5 max-w-md font-sans animate-in fade-in slide-in-from-bottom-2">
-          <span className="material-symbols-outlined text-[#f14c4c] flex-shrink-0" style={{ fontSize: 18 }}>
-            error
-          </span>
+          <AlertCircle size={18} className="text-[#f14c4c] flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-xs text-[#ffffff] mb-0.5">Architecture Analysis Error</div>
             <p className="text-[11px] text-[#858585] font-mono leading-relaxed truncate">{error}</p>
@@ -95,10 +100,8 @@ const PyArchStudioApp: React.FC = () => {
               </button>
             </div>
           </div>
-          <button onClick={clearError} className="text-[#858585] hover:text-[#cccccc]">
-            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-              close
-            </span>
+          <button onClick={clearError} className="text-[#858585] hover:text-[#cccccc] p-0.5">
+            <X size={14} />
           </button>
         </div>
       )}
@@ -107,28 +110,20 @@ const PyArchStudioApp: React.FC = () => {
       <footer className="absolute bottom-0 left-0 right-0 h-6 bg-[#007acc] text-[#ffffff] px-2.5 flex items-center justify-between text-[11px] z-40 select-none font-sans">
         {/* Left Status Items */}
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1 hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer">
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-              source_environment
-            </span>
+          <div className="flex items-center space-x-1.5 hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer">
+            <FolderOpen size={13} />
             <span className="font-medium font-mono">{repoName}</span>
           </div>
 
           <div className="flex items-center space-x-1 hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer">
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-              commit
-            </span>
+            <GitBranch size={13} />
             <span>main</span>
           </div>
 
           <div className="flex items-center space-x-1.5 hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer">
-            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-              error_outline
-            </span>
+            <AlertCircle size={13} />
             <span>0</span>
-            <span className="material-symbols-outlined ml-1" style={{ fontSize: 13 }}>
-              warning_amber
-            </span>
+            <AlertTriangle size={13} className="ml-1" />
             <span>{error ? '1' : '0'}</span>
           </div>
 

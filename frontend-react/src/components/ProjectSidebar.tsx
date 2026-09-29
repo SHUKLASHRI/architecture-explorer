@@ -1,6 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
 import type { SidebarTab } from '../types';
+import {
+  Boxes,
+  Pin,
+  X,
+  Search,
+  FileCode,
+} from 'lucide-react';
 
 export const ProjectSidebar: React.FC = () => {
   const {
@@ -72,9 +79,7 @@ export const ProjectSidebar: React.FC = () => {
         className="absolute left-3 top-14 z-40 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] px-2.5 py-1.5 shadow-lg cursor-pointer transition-colors flex items-center gap-2"
         title="Hover to peek, click to pin open (Ctrl+B)"
       >
-        <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 15 }}>
-          account_tree
-        </span>
+        <Boxes size={15} className="text-[#007acc]" />
         <span className="font-mono text-xs font-medium text-[#cccccc] tracking-normal">
           {projectName}
         </span>
@@ -99,9 +104,7 @@ export const ProjectSidebar: React.FC = () => {
         {/* Panel Header */}
         <div className="h-9 px-3 border-b border-[#3e3e42] flex items-center justify-between bg-[#2d2d2d]">
           <div className="flex items-center space-x-1.5 truncate">
-            <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 15 }}>
-              account_tree
-            </span>
+            <Boxes size={15} className="text-[#007acc]" />
             <span className="text-xs font-semibold text-[#ffffff] tracking-normal truncate font-sans uppercase text-[11px]">
               {projectName}
             </span>
@@ -116,16 +119,14 @@ export const ProjectSidebar: React.FC = () => {
             {/* Pin / Unpin button */}
             <button
               onClick={() => setLeftPanelOpen((prev) => !prev)}
-              className={`p-1 rounded-[2px] transition-colors ${
+              className={`p-1 rounded-[2px] transition-colors flex items-center justify-center ${
                 leftPanelOpen
                   ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
                   : 'text-[#858585] hover:text-[#ffffff] hover:bg-[#383838]'
               }`}
               title={leftPanelOpen ? 'Pinned open (Click to unpin and auto-hide)' : 'Click to pin open'}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
-                {leftPanelOpen ? 'push_pin' : 'keep'}
-              </span>
+              <Pin size={13} />
             </button>
 
             {/* Fold button */}
@@ -134,12 +135,10 @@ export const ProjectSidebar: React.FC = () => {
                 setLeftPanelOpen(false);
                 setLeftPanelHovered(false);
               }}
-              className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] transition-colors"
+              className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] transition-colors flex items-center justify-center"
               title="Fold sidebar (Ctrl+B)"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
-                close
-              </span>
+              <X size={14} />
             </button>
           </div>
         </div>
@@ -164,12 +163,7 @@ export const ProjectSidebar: React.FC = () => {
         {/* Filter Input */}
         <div className="p-2 border-b border-[#3e3e42] bg-[#252526]">
           <div className="relative flex items-center">
-            <span
-              className="material-symbols-outlined absolute left-2 text-[#858585] pointer-events-none"
-              style={{ fontSize: 13 }}
-            >
-              search
-            </span>
+            <Search size={13} className="absolute left-2 text-[#858585] pointer-events-none" />
             <input
               type="text"
               value={treeFilter}
@@ -182,9 +176,7 @@ export const ProjectSidebar: React.FC = () => {
                 onClick={() => setTreeFilter('')}
                 className="absolute right-1.5 text-[#858585] hover:text-[#cccccc]"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
-                  close
-                </span>
+                <X size={12} />
               </button>
             )}
           </div>
@@ -203,9 +195,7 @@ export const ProjectSidebar: React.FC = () => {
                   <div key={filename} className="mb-1.5">
                     {/* File Header */}
                     <div className="flex items-center space-x-1.5 py-1 px-1.5 text-[#cccccc] hover:bg-[#2a2d2e] rounded-[2px] group font-mono text-[11px]">
-                      <span className="material-symbols-outlined text-[#569cd6]" style={{ fontSize: 14 }}>
-                        description
-                      </span>
+                      <FileCode size={13} className="text-[#569cd6] flex-shrink-0" />
                       <span className="font-medium truncate flex-1">{filename}</span>
                       <span className="text-[10px] text-[#858585]">{syms.length}</span>
                     </div>
