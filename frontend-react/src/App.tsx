@@ -6,7 +6,6 @@ import { HeroCanvas } from './components/HeroCanvas';
 import { InspectorPanel } from './components/InspectorPanel';
 import { SafeRenameModal } from './components/SafeRenameModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
-import { ConfirmModal } from './components/ConfirmModal';
 import { ToastContainer } from './components/ToastContainer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import {
@@ -31,8 +30,6 @@ const PyArchStudioApp: React.FC = () => {
     setRightPanelOpen,
     minimizeAllPanels,
     apiConnected,
-    confirmDialog,
-    closeConfirmation,
     toasts,
     dismissToast,
   } = useExplorer();
@@ -83,7 +80,6 @@ const PyArchStudioApp: React.FC = () => {
       {/* MODALS */}
       <CommandPaletteModal />
       <SafeRenameModal />
-      <ConfirmModal options={confirmDialog} onClose={closeConfirmation} />
 
       {/* TOAST SYSTEM (With Undo Actions & Feedback) */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />

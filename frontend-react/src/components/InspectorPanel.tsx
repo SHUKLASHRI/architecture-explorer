@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
@@ -14,6 +14,9 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   AlertCircle,
+  AlertTriangle,
+  ShieldAlert,
+  RotateCcw,
 } from 'lucide-react';
 
 export const InspectorPanel: React.FC = () => {
@@ -32,11 +35,76 @@ export const InspectorPanel: React.FC = () => {
     rightPanelHovered,
     setRightPanelHovered,
     setIsEditorFocused,
+    nodes,
+    activeCycles,
   } = useExplorer();
 
   const [copied, setCopied] = useState(false);
 
   const isUnfolded = rightPanelOpen || rightPanelHovered;
+
+  // Compute reality check metrics (Combats Confirmation Bias)
+  const directCallers = (impact && impact.direct_callers) || [];
+  const transitiveCallers = (impact && impact.callers) || directCallers;
+  const hiddenCallersCount = Math.max(0, transitiveCallers.length - directCallers.length);
+  const callees = (impact && impact.direct_callees) || [];
+
+  // 1. Layer boundary violations (Combat Confirmation Bias: "My code is cleanly layered")
+  const layerViolations = useMemo(() => {
+    if (!selectedNode || !selectedNode.tier) return [];
+    const srcTier = selectedNode.tier.toLowerCase();
+    const violations: { callee: string; targetTier: string; reason: string }[] = [];
+
+    callees.forEach((calleeId) => {
+      const target = nodes.find((n) => n.id === calleeId || n.name === calleeId);
+      if (target?.tier) {
+        const tgtTier = target.tier.toLowerCase();
+        if (srcTier === 'presentation' && tgtTier === 'persistence') {
+          violations.push({
+            callee: target.name,
+            targetTier: tgtTier,
+            reason: 'Presentation directly calls Persistence (bypasses Services)',
+          });
+        } else if (
+          srcTier === 'persistence' &&
+          (tgtTier === 'presentation' || tgtTier === 'services')
+        ) {
+          violations.push({
+            callee: target.name,
+            targetTier: tgtTier,
+            reason: 'Persistence inversely calls higher-level tier',
+          });
+        }
+      }
+    });
+    return violations;
+  }, [selectedNode, callees, nodes]);
+
+  // 2. Dead / Orphan detection (Combat Confirmation Bias: "All code is used")
+  const isOrphan =
+    selectedNode &&
+    directCallers.length === 0 &&
+    selectedNode.name !== 'main' &&
+    !selectedNode.name.startsWith('test_') &&
+    selectedNode.kind !== 'class';
+
+  // 3. Circular Dependency (Combat Confirmation Bias: "No circular loops")
+  const cycleInvolved = useMemo(() => {
+    if (!selectedNode) return null;
+    return activeCycles.find(
+      (cycle) => cycle.includes(selectedNode.id) || cycle.includes(selectedNode.name)
+    );
+  }, [activeCycles, selectedNode]);
+
+  // 4. Affected files across blast radius
+  const blastRadiusFiles = useMemo(() => {
+    const fileSet = new Set<string>();
+    transitiveCallers.forEach((cId) => {
+      const cNode = nodes.find((n) => n.id === cId || n.name === cId);
+      if (cNode?.filename) fileSet.add(cNode.filename);
+    });
+    return Array.from(fileSet);
+  }, [transitiveCallers, nodes]);
 
   // MINIMIZED STATE: Sleek VS Code docked tab pill on the right
   if (!isUnfolded) {
@@ -75,8 +143,7 @@ export const InspectorPanel: React.FC = () => {
 
   const isClass = selectedNode.kind === 'class';
   const isMethod = Boolean(selectedNode.class_owner);
-  const callers = (impact && impact.direct_callers) || [];
-  const callees = (impact && impact.direct_callees) || [];
+  const callers = directCallers;
 
   const handleCopySource = () => {
     if (!sourceSnippet?.lines) return;
@@ -273,6 +340,82 @@ export const InspectorPanel: React.FC = () => {
           <div className="text-[10px] font-mono text-[#858585] flex items-center gap-1.5 truncate pt-1 border-t border-[#2d2d2d]">
             <FileCode size={13} className="text-[#858585] flex-shrink-0" />
             <span className="truncate">{selectedNode.rel_path || selectedNode.file}</span>
+          </div>
+        </div>
+
+        {/* REALITY CHECK (Combats Confirmation Bias) */}
+        <div className="p-2.5 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-mono font-semibold text-[#cccccc]">
+            <div className="flex items-center gap-1.5">
+              <ShieldAlert
+                size={14}
+                className={
+                  layerViolations.length > 0 || isOrphan || cycleInvolved
+                    ? 'text-[#cca700]'
+                    : 'text-[#4ec9b0]'
+                }
+              />
+              <span>Reality Check</span>
+            </div>
+            <span className="text-[9px] text-[#858585] uppercase tracking-wider">
+              Objective Telemetry
+            </span>
+          </div>
+
+          <div className="space-y-1.5 text-[10px] font-mono">
+            {/* Transitive Blast Radius (Countering "It only affects this file") */}
+            <div className="p-1.5 rounded-[2px] bg-[#181818] border border-[#2d2d2d] flex items-center justify-between">
+              <span className="text-[#858585]">Blast Radius:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[#cccccc] font-medium">{directCallers.length} direct</span>
+                {hiddenCallersCount > 0 ? (
+                  <span
+                    className="text-[#cca700] bg-[#332a15] px-1 rounded-[1px] border border-[#4d4020]"
+                    title={`${hiddenCallersCount} indirect downstream callers affected across ${blastRadiusFiles.length} file(s)`}
+                  >
+                    +{hiddenCallersCount} hidden indirect ({blastRadiusFiles.length} file{blastRadiusFiles.length !== 1 ? 's' : ''})
+                  </span>
+                ) : (
+                  <span className="text-[#4ec9b0]">Isolated</span>
+                )}
+              </div>
+            </div>
+
+            {/* Layer Inversion / Boundary Check (Countering "Code is cleanly layered") */}
+            {layerViolations.length > 0 ? (
+              <div className="p-1.5 rounded-[2px] bg-[#332a15] border border-[#cca700]/50 text-[#e0d6b5] space-y-0.5">
+                <div className="flex items-center gap-1 text-[#cca700] font-semibold">
+                  <AlertTriangle size={12} />
+                  <span>Layer Boundary Leak</span>
+                </div>
+                {layerViolations.map((v, i) => (
+                  <div key={i} className="text-[10px] text-[#cccccc]">
+                    • {v.reason} (<span className="text-[#dcdcaa]">{v.callee}</span>)
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-1.5 rounded-[2px] bg-[#181818] border border-[#2d2d2d] flex items-center justify-between text-[#858585]">
+                <span>Layer Integrity:</span>
+                <span className="text-[#4ec9b0]">Clean Layering</span>
+              </div>
+            )}
+
+            {/* Circular Dependency Loop */}
+            {cycleInvolved && (
+              <div className="p-1.5 rounded-[2px] bg-[#332020] border border-[#f14c4c]/40 text-[#f14c4c] flex items-center gap-1.5">
+                <RotateCcw size={12} className="flex-shrink-0" />
+                <span className="truncate">Circular Chain: {cycleInvolved.join(' ⇄ ')}</span>
+              </div>
+            )}
+
+            {/* Orphan Code Alert (Countering "Everything here is used") */}
+            {isOrphan && (
+              <div className="p-1.5 rounded-[2px] bg-[#2d2815] border border-[#cca700]/40 text-[#cca700] flex items-center gap-1.5">
+                <AlertCircle size={12} className="flex-shrink-0" />
+                <span>0 Callers in Project (Potential Dead Code)</span>
+              </div>
+            )}
           </div>
         </div>
 

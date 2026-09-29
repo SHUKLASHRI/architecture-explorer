@@ -14,7 +14,6 @@ import type {
   ProjectDiagnostics,
   ProjectMeta,
   CardDensity,
-  ConfirmDialogOptions,
   ToastNotification,
 } from '../types';
 import * as api from '../api/client';
@@ -78,11 +77,6 @@ interface ExplorerContextType {
   setCardDensity: (d: CardDensity) => void;
   activeLayerFilter: string;
   setActiveLayerFilter: (l: string) => void;
-
-  // Confirmation dialogs
-  confirmDialog: ConfirmDialogOptions | null;
-  askConfirmation: (opts: ConfirmDialogOptions) => void;
-  closeConfirmation: () => void;
 
   // Toast notification & Undo system
   toasts: ToastNotification[];
@@ -158,15 +152,6 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Visual Hierarchy & Cognitive Load controls
   const [cardDensity, setCardDensity] = useState<CardDensity>('standard');
   const [activeLayerFilter, setActiveLayerFilter] = useState<string>('ALL');
-
-  // Confirmation dialogs
-  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogOptions | null>(null);
-  const askConfirmation = useCallback((opts: ConfirmDialogOptions) => {
-    setConfirmDialog(opts);
-  }, []);
-  const closeConfirmation = useCallback(() => {
-    setConfirmDialog(null);
-  }, []);
 
   // Toast Notification & Undo system
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -480,11 +465,6 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setCardDensity,
         activeLayerFilter,
         setActiveLayerFilter,
-
-        // Confirmation dialogs
-        confirmDialog,
-        askConfirmation,
-        closeConfirmation,
 
         // Toast notification & Undo system
         toasts,

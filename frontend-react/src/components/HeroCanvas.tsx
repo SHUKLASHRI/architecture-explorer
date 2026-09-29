@@ -126,7 +126,6 @@ export const HeroCanvas: React.FC = () => {
     updateNodePosition,
     resetNodePositions,
     hasCustomPositions,
-    askConfirmation,
     cardDensity,
     setCardDensity,
     activeLayerFilter,
@@ -293,23 +292,9 @@ export const HeroCanvas: React.FC = () => {
   }, [nodes, effectivePositions, containerSize, currentCardWidth, currentCardHeight]);
 
   const handleResetLayout = useCallback(() => {
-    if (hasCustomPositions) {
-      askConfirmation({
-        title: 'Reset Canvas Layout?',
-        message:
-          'You have customized the positions of symbol nodes. Do you want to arrange all nodes back to their automatic tiered columns?',
-        confirmText: 'Reset Layout',
-        isDestructive: false,
-        onConfirm: () => {
-          resetNodePositions();
-          handleFitView();
-        },
-      });
-    } else {
-      resetNodePositions();
-      handleFitView();
-    }
-  }, [hasCustomPositions, askConfirmation, resetNodePositions, handleFitView]);
+    resetNodePositions();
+    handleFitView();
+  }, [resetNodePositions, handleFitView]);
 
   // Auto-center on initial nodes load
   useEffect(() => {
