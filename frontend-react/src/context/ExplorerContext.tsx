@@ -59,6 +59,9 @@ interface ExplorerContextType {
   isLoading: boolean;
   isLoadingSource: boolean;
   error: string | null;
+  clearError: () => void;
+  sourceError: string | null;
+  retrySourceSnippet: () => void;
   isSpotlightOpen: boolean;
   openSpotlight: () => void;
   closeSpotlight: () => void;
@@ -81,7 +84,7 @@ interface ExplorerContextType {
   minimizeAllPanels: () => void;
 
   // Actions
-  loadProject: (path?: string) => Promise<void>;
+  loadProject: (path?: string, forceRefresh?: boolean) => Promise<void>;
   selectNodeById: (nodeId: string) => void;
   selectNode: (node: GraphNode | null) => void;
   handleRenameSuccess: (data: any) => void;
@@ -120,6 +123,7 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isLoadingSource, setIsLoadingSource] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
   const [isSpotlightOpen, setIsSpotlightOpen] = useState<boolean>(false);
   const [renameModalNode, setRenameModalNode] = useState<GraphNode | null>(null);
   const [nodeCustomPositions, setNodeCustomPositions] = useState<Record<string, { x: number; y: number }>>({});
@@ -129,12 +133,14 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [rightPanelHovered, setRightPanelHovered] = useState<boolean>(false);
   const [apiConnected, setApiConnected] = useState<boolean>(false);
 
+  const clearError = useCallback(() => setError(null), []);
+
   // Poll health check
   useEffect(() => {
     api.checkHealth().then((ok) => setApiConnected(ok));
     const interval = setInterval(() => {
       api.checkHealth().then((ok) => setApiConnected(ok));
-    }, 8000);
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -160,13 +166,13 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   // Load project AST from Flask
   const loadProject = useCallback(
-    async (customPath?: string) => {
+    async (customPath?: string, forceRefresh = false) => {
       const targetPath = customPath || projectPath;
       setIsLoading(true);
       setError(null);
 
       try {
-        const data: AnalyzeResponse = await api.analyzeProject(targetPath);
+        const data: AnalyzeResponse = await api.analyzeProject(targetPath, forceRefresh);
         setNodes(data.nodes || []);
         setEdges(data.edges || []);
         setSummary(data.summary || null);
@@ -203,27 +209,44 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   // Fetch node source & impact whenever selectedNode changes
-  useEffect(() => {
-    if (!selectedNode) {
-      setSourceSnippet(null);
-      setImpact(null);
-      return;
-    }
-
+  const fetchNodeDetails = useCallback((node: GraphNode) => {
     setIsLoadingSource(true);
+    setSourceError(null);
+
     Promise.allSettled([
-      api.fetchSourceSnippet(selectedNode.file, selectedNode.line),
-      api.analyzeImpact(selectedNode.id),
+      api.fetchSourceSnippet(node.file, node.line),
+      api.analyzeImpact(node.id),
     ]).then(([srcRes, impactRes]) => {
       if (srcRes.status === 'fulfilled') {
         setSourceSnippet(srcRes.value);
+      } else {
+        setSourceSnippet(null);
+        setSourceError(srcRes.reason?.message || 'Could not load source code');
       }
       if (impactRes.status === 'fulfilled') {
         setImpact(impactRes.value);
+      } else {
+        setImpact(null);
       }
       setIsLoadingSource(false);
     });
-  }, [selectedNode]);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedNode) {
+      setSourceSnippet(null);
+      setSourceError(null);
+      setImpact(null);
+      return;
+    }
+    fetchNodeDetails(selectedNode);
+  }, [selectedNode, fetchNodeDetails]);
+
+  const retrySourceSnippet = useCallback(() => {
+    if (selectedNode) {
+      fetchNodeDetails(selectedNode);
+    }
+  }, [selectedNode, fetchNodeDetails]);
 
   const selectNodeById = useCallback(
     (nodeId: string) => {
@@ -362,6 +385,9 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         isLoading,
         isLoadingSource,
         error,
+        clearError,
+        sourceError,
+        retrySourceSnippet,
         isSpotlightOpen,
         openSpotlight: () => setIsSpotlightOpen(true),
         closeSpotlight: () => setIsSpotlightOpen(false),

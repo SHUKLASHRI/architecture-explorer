@@ -22,42 +22,44 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('PyArch Studio Uncaught Error:', error, errorInfo);
+    console.error('Architecture Explorer UI Error:', error, errorInfo);
     this.setState({ errorInfo });
   }
 
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="h-screen w-screen bg-midnight-950 text-slate-200 flex flex-col items-center justify-center p-8 font-mono">
-          <div className="max-w-xl w-full bg-midnight-900 border border-rose-500/40 rounded-xl p-6 shadow-2xl shadow-rose-950/50">
-            <div className="flex items-center gap-3 text-rose-400 font-bold text-base mb-3">
-              <span className="material-symbols-outlined text-2xl">error</span>
-              <span>PyArch Studio Runtime Error</span>
+        <div className="h-screen w-screen bg-[#1e1e1e] text-[#cccccc] flex flex-col items-center justify-center p-6 font-sans select-none">
+          <div className="max-w-xl w-full bg-[#252526] border border-[#3e3e42] rounded-[3px] p-5 shadow-2xl">
+            <div className="flex items-center gap-2.5 text-[#f14c4c] font-semibold text-sm mb-3">
+              <span className="material-symbols-outlined text-xl">error</span>
+              <span>Workbench Rendering Error</span>
             </div>
-            <p className="text-xs text-slate-400 mb-4">
-              An unexpected error occurred during rendering:
+            <p className="text-xs text-[#858585] mb-3">
+              An unexpected error occurred while rendering the workspace:
             </p>
-            <div className="bg-midnight-950 p-3 rounded-lg border border-slate-800 text-rose-300 text-xs overflow-x-auto mb-4">
+            <div className="bg-[#1e1e1e] p-3 rounded-[2px] border border-[#3e3e42] text-[#f14c4c] font-mono text-xs overflow-x-auto mb-4 whitespace-pre-wrap">
               {this.state.error?.toString()}
             </div>
             {this.state.errorInfo && (
-              <details className="text-[10px] text-slate-500 mb-4">
-                <summary className="cursor-pointer hover:text-slate-400 mb-1">Stack Trace</summary>
-                <pre className="bg-midnight-950 p-2 rounded max-h-48 overflow-y-auto">
+              <details className="text-[11px] text-[#858585] mb-4 font-mono">
+                <summary className="cursor-pointer hover:text-[#cccccc] mb-1">Component Stack</summary>
+                <pre className="bg-[#1e1e1e] p-2.5 rounded-[2px] border border-[#3e3e42] max-h-40 overflow-y-auto text-[10px] text-[#858585]">
                   {this.state.errorInfo.componentStack}
                 </pre>
               </details>
             )}
-            <button
-              onClick={() => {
-                this.setState({ hasError: false, error: null, errorInfo: null });
-                window.location.reload();
-              }}
-              className="bg-sky-500 hover:bg-sky-400 text-midnight-950 font-bold px-4 py-2 rounded-lg text-xs cursor-pointer transition-all shadow-lg shadow-sky-500/20"
-            >
-              Reload Studio
-            </button>
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#3e3e42]">
+              <button
+                onClick={() => {
+                  this.setState({ hasError: false, error: null, errorInfo: null });
+                  window.location.reload();
+                }}
+                className="bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-1.5 rounded-[2px] text-xs cursor-pointer transition-colors"
+              >
+                Reload Window
+              </button>
+            </div>
           </div>
         </div>
       );

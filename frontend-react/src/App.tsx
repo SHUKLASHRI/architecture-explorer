@@ -11,10 +11,17 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 const PyArchStudioApp: React.FC = () => {
   const {
     error,
+    clearError,
     isLoading,
+    loadProject,
+    projectPath,
+    selectedNode,
+    nodes,
+    zoom,
     setLeftPanelOpen,
     setRightPanelOpen,
     minimizeAllPanels,
+    apiConnected,
   } = useExplorer();
 
   // Global layout keyboard shortcuts
@@ -39,15 +46,24 @@ const PyArchStudioApp: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setLeftPanelOpen, setRightPanelOpen, minimizeAllPanels]);
 
+  const repoName = projectPath.split(/[\\/]/).filter(Boolean).pop() || 'project';
+
   return (
-    <div className="h-screen w-screen relative overflow-hidden bg-[#09090b] text-zinc-200 font-sans text-xs antialiased select-none">
-      {/* 1. IMMERSIVE FULL-BLEED CANVAS (Occupies 100% of the screen) */}
+    <div className="h-screen w-screen relative overflow-hidden bg-[#1e1e1e] text-[#cccccc] font-sans text-xs antialiased select-none flex flex-col">
+      {/* VS Code Top Indeterminate Progress Line (when parsing/loading AST) */}
+      {isLoading && (
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#252526] z-50 overflow-hidden">
+          <div className="h-full bg-[#007acc] w-1/3 animate-[pulse_1s_ease-in-out_infinite] translate-x-1/2" />
+        </div>
+      )}
+
+      {/* 1. IMMERSIVE FULL-BLEED CANVAS (Occupies 100% of workspace) */}
       <HeroCanvas />
 
-      {/* 2. FLOATING TOP COMMAND BAR */}
+      {/* 2. TOP COMMAND TITLEBAR */}
       <HeaderBar />
 
-      {/* 3. FLOATING DYNAMIC LEFT & RIGHT PANELS (Auto-minimize on canvas click, expand on hover) */}
+      {/* 3. DYNAMIC LEFT SIDEBAR & RIGHT INSPECTOR */}
       <ProjectSidebar />
       <InspectorPanel />
 
@@ -55,21 +71,106 @@ const PyArchStudioApp: React.FC = () => {
       <CommandPaletteModal />
       <SafeRenameModal />
 
-      {/* Global Error Banner */}
+      {/* VS CODE BOTTOM NOTIFICATION TOAST (Clean, non-intrusive error handling) */}
       {error && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-rose-950/95 border border-rose-500/50 text-rose-300 px-4 py-2 rounded-xl backdrop-blur-xl shadow-2xl flex items-center gap-2 font-mono">
-          <span className="material-symbols-outlined text-rose-400">error</span>
-          <span>{error}</span>
+        <div className="absolute bottom-9 right-4 z-50 bg-[#252526] border border-[#3e3e42] text-[#cccccc] p-3 rounded-[3px] shadow-2xl flex items-start gap-2.5 max-w-md font-sans animate-in fade-in slide-in-from-bottom-2">
+          <span className="material-symbols-outlined text-[#f14c4c] flex-shrink-0" style={{ fontSize: 18 }}>
+            error
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-xs text-[#ffffff] mb-0.5">Architecture Analysis Error</div>
+            <p className="text-[11px] text-[#858585] font-mono leading-relaxed truncate">{error}</p>
+            <div className="flex items-center gap-2 mt-2">
+              <button
+                onClick={() => loadProject(projectPath, true)}
+                className="px-2.5 py-1 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] rounded-[2px] text-[11px] font-sans transition-colors"
+              >
+                Retry
+              </button>
+              <button
+                onClick={clearError}
+                className="px-2.5 py-1 bg-[#333333] hover:bg-[#3e3e42] text-[#cccccc] hover:text-[#ffffff] rounded-[2px] text-[11px] font-sans transition-colors"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+          <button onClick={clearError} className="text-[#858585] hover:text-[#cccccc]">
+            <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
+              close
+            </span>
+          </button>
         </div>
       )}
 
-      {/* Loading Notification */}
-      {isLoading && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-50 bg-[#121217]/95 border border-white/10 text-zinc-300 px-4 py-2 rounded-full backdrop-blur-xl shadow-2xl flex items-center gap-2 font-mono text-[11px]">
-          <span className="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span>
-          <span>Parsing Python AST &amp; Building Graph...</span>
+      {/* VS CODE CLASSIC STATUS BAR (Always visible at the bottom) */}
+      <footer className="absolute bottom-0 left-0 right-0 h-6 bg-[#007acc] text-[#ffffff] px-2.5 flex items-center justify-between text-[11px] z-40 select-none font-sans">
+        {/* Left Status Items */}
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1 hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer">
+            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+              source_environment
+            </span>
+            <span className="font-medium font-mono">{repoName}</span>
+          </div>
+
+          <div className="flex items-center space-x-1 hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer">
+            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+              commit
+            </span>
+            <span>main</span>
+          </div>
+
+          <div className="flex items-center space-x-1.5 hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer">
+            <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
+              error_outline
+            </span>
+            <span>0</span>
+            <span className="material-symbols-outlined ml-1" style={{ fontSize: 13 }}>
+              warning_amber
+            </span>
+            <span>{error ? '1' : '0'}</span>
+          </div>
+
+          {isLoading && (
+            <div className="flex items-center space-x-1 text-[#e0e0e0]">
+              <div className="w-2.5 h-2.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="text-[10px]">Analyzing AST...</span>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Center Breadcrumb */}
+        {selectedNode && (
+          <div className="hidden md:flex items-center space-x-1 text-[11px] font-mono opacity-90 truncate max-w-sm">
+            <span>{selectedNode.filename}</span>
+            <span>&gt;</span>
+            <span className="font-semibold">{selectedNode.name}()</span>
+          </div>
+        )}
+
+        {/* Right Status Items */}
+        <div className="flex items-center space-x-3">
+          <span className="hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer font-mono">
+            {nodes.length} symbols
+          </span>
+          <span className="hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer font-mono">
+            Python 3.x
+          </span>
+          <span className="hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer font-mono">
+            UTF-8
+          </span>
+          <span className="hover:bg-[#094771] px-1 py-0.5 rounded cursor-pointer font-mono">
+            Zoom {Math.round(zoom * 100)}%
+          </span>
+          <div
+            className={`w-2 h-2 rounded-full ${
+              apiConnected ? 'bg-[#4ec9b0]' : 'bg-[#cca700] animate-pulse'
+            }`}
+            title={apiConnected ? 'Backend Connected' : 'Connecting to Backend'}
+          />
+        </div>
+      </footer>
     </div>
   );
 };

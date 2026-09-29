@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
-import { X, Edit3, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import * as api from '../api/client';
 import type { RenamePlan } from '../types';
 
@@ -74,7 +74,7 @@ export const SafeRenameModal: React.FC = () => {
         );
         setTimeout(() => {
           handleRenameSuccess(res);
-        }, 1200);
+        }, 1100);
       }
     } catch (err: any) {
       setError(err.message || 'Error executing refactor rename');
@@ -85,43 +85,43 @@ export const SafeRenameModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 select-none"
       onClick={closeRenameModal}
     >
       <div
-        className="w-[580px] max-w-[92vw] max-h-[85vh] bg-[#121216] border border-zinc-800 rounded-xl shadow-2xl flex flex-col overflow-hidden font-sans select-none"
+        className="w-[560px] max-w-[92vw] max-h-[85vh] bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-2xl flex flex-col overflow-hidden font-sans"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-5 py-3.5 border-b border-zinc-800 flex items-center justify-between">
-          <div className="flex items-center space-x-2.5">
-            <div className="w-7 h-7 rounded bg-blue-600/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
-              <Edit3 size={15} />
-            </div>
+        <div className="px-4 py-3 border-b border-[#3e3e42] flex items-center justify-between bg-[#2d2d2d]">
+          <div className="flex items-center space-x-2">
+            <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 16 }}>
+              edit
+            </span>
             <div>
-              <h3 className="text-sm font-semibold text-zinc-100">
-                Safe AST Rename Refactor
+              <h3 className="text-xs font-semibold text-[#ffffff]">
+                Rename Symbol
               </h3>
-              <p className="text-[11px] text-zinc-400 font-mono">
-                Symbol: <strong className="text-zinc-200">{renameModalNode.name}</strong>
+              <p className="text-[11px] text-[#858585] font-mono">
+                Original: <strong className="text-[#cccccc]">{renameModalNode.name}</strong>
               </p>
             </div>
           </div>
 
           <button
             onClick={closeRenameModal}
-            className="text-zinc-400 hover:text-zinc-200 p-1 rounded hover:bg-zinc-800 transition-colors"
+            className="text-[#858585] hover:text-[#ffffff] p-1 rounded-[2px] hover:bg-[#383838] transition-colors"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-5 overflow-y-auto space-y-4 code-scroll">
+        <div className="p-4 overflow-y-auto space-y-3.5 code-scroll">
           {/* New Name Input Row */}
           <div>
-            <label className="block text-[11px] font-semibold text-zinc-400 mb-1.5 font-mono">
-              New Identifier Name
+            <label className="block text-[11px] font-sans text-[#858585] mb-1">
+              New Symbol Name
             </label>
             <div className="flex gap-2">
               <input
@@ -131,13 +131,13 @@ export const SafeRenameModal: React.FC = () => {
                   setNewName(e.target.value);
                   setPlan(null);
                 }}
-                placeholder="e.g. generate_auth_token"
-                className="flex-1 bg-[#16161c] border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-100 font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30"
+                placeholder="e.g. validate_credentials"
+                className="flex-1 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] px-2.5 py-1 text-xs text-[#cccccc] font-mono focus:outline-none focus:border-[#007acc]"
               />
               <button
                 onClick={handlePreview}
                 disabled={isPreviewing}
-                className="px-3.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700/60 rounded-lg text-xs font-medium text-zinc-200 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                className="px-3 py-1 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-xs font-sans text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1.5 transition-colors disabled:opacity-50"
               >
                 {isPreviewing && <Loader2 size={13} className="animate-spin" />}
                 <span>Preview</span>
@@ -147,16 +147,16 @@ export const SafeRenameModal: React.FC = () => {
 
           {/* Error Banner */}
           {error && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-rose-950/60 border border-rose-500/40 text-rose-300 text-xs">
-              <AlertTriangle size={15} className="text-rose-400 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-2 rounded-[2px] bg-[#332020] border border-[#f14c4c]/40 text-[#f14c4c] text-xs">
+              <AlertTriangle size={14} className="text-[#f14c4c] flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Success Banner */}
           {successMessage && (
-            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300 text-xs">
-              <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
+            <div className="flex items-center gap-2 p-2 rounded-[2px] bg-[#203330] border border-[#4ec9b0]/40 text-[#4ec9b0] text-xs">
+              <CheckCircle2 size={14} className="text-[#4ec9b0] flex-shrink-0" />
               <span>{successMessage}</span>
             </div>
           )}
@@ -165,30 +165,30 @@ export const SafeRenameModal: React.FC = () => {
           {plan && (
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-zinc-400 font-semibold">
+                <span className="text-[#858585] font-medium">
                   Planned Substitutions ({plan.substitutions.length})
                 </span>
-                <span className="text-[10px] text-zinc-500">
+                <span className="text-[10px] text-[#858585]">
                   {new Set(plan.substitutions.map((s) => s.file)).size} files affected
                 </span>
               </div>
 
-              <div className="space-y-2 max-h-56 overflow-y-auto code-scroll">
+              <div className="space-y-1.5 max-h-56 overflow-y-auto code-scroll">
                 {plan.substitutions.map((sub, i) => (
                   <div
                     key={i}
-                    className="p-2.5 rounded-lg bg-[#0e0e12] border border-zinc-800/80 font-mono text-[11px] space-y-1.5"
+                    className="p-2 rounded-[2px] bg-[#1e1e1e] border border-[#3e3e42] font-mono text-[11px] space-y-1"
                   >
-                    <div className="flex items-center justify-between text-zinc-500 text-[10px]">
-                      <span className="text-zinc-400 truncate">{sub.file}</span>
+                    <div className="flex items-center justify-between text-[#858585] text-[10px]">
+                      <span className="text-[#cccccc] truncate">{sub.file}</span>
                       <span>Line {sub.line}</span>
                     </div>
 
-                    <div className="space-y-1">
-                      <div className="p-1 rounded bg-rose-950/30 text-rose-300/90 border border-rose-900/30 overflow-x-auto truncate">
+                    <div className="space-y-0.5">
+                      <div className="p-1 rounded-[1px] bg-[#332020] text-[#f14c4c] border border-[#4a2a2a] overflow-x-auto truncate">
                         - {sub.old}
                       </div>
-                      <div className="p-1 rounded bg-emerald-950/30 text-emerald-300/90 border border-emerald-900/30 overflow-x-auto truncate">
+                      <div className="p-1 rounded-[1px] bg-[#203330] text-[#4ec9b0] border border-[#2a4e48] overflow-x-auto truncate">
                         + {sub.new}
                       </div>
                     </div>
@@ -200,10 +200,10 @@ export const SafeRenameModal: React.FC = () => {
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-3 border-t border-zinc-800 bg-[#0e0e11] flex items-center justify-between">
+        <div className="px-4 py-2.5 border-t border-[#3e3e42] bg-[#2d2d2d] flex items-center justify-between">
           <button
             onClick={closeRenameModal}
-            className="px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 transition-colors"
+            className="px-3 py-1 text-xs text-[#858585] hover:text-[#cccccc] transition-colors"
           >
             Cancel
           </button>
@@ -211,10 +211,10 @@ export const SafeRenameModal: React.FC = () => {
           <button
             onClick={handleApply}
             disabled={!plan || isApplying}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+            className={`px-3 py-1 rounded-[2px] text-xs font-sans flex items-center gap-1.5 transition-colors ${
               plan && !isApplying
-                ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-600/20'
-                : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'
+                ? 'bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff]'
+                : 'bg-[#333333] text-[#858585] cursor-not-allowed'
             }`}
           >
             {isApplying && <Loader2 size={13} className="animate-spin" />}

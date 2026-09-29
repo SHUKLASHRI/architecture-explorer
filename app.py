@@ -168,7 +168,9 @@ def analyze():
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
 
-    _invalidate_cache()
+    force_refresh = data.get("refresh", False)
+    if force_refresh:
+        _invalidate_cache()
     result = _get_result(abs_path)
 
     return jsonify({

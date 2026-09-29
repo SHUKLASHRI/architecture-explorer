@@ -18,11 +18,11 @@ export const CommandPaletteModal: React.FC = () => {
   }, [isSpotlightOpen]);
 
   const filteredNodes = useMemo(() => {
-    if (!query.trim()) return nodes.slice(0, 15);
+    if (!query.trim()) return nodes.slice(0, 16);
     const q = query.toLowerCase();
     return nodes
       .filter((n) => n.name.toLowerCase().includes(q) || n.filename.toLowerCase().includes(q))
-      .slice(0, 15);
+      .slice(0, 16);
   }, [nodes, query]);
 
   useEffect(() => {
@@ -53,42 +53,42 @@ export const CommandPaletteModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/70 backdrop-blur-md z-50 flex items-start justify-center pt-[15vh]"
+      className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-[8vh] select-none"
       onClick={closeSpotlight}
     >
       <div
-        className="w-[560px] max-w-[92vw] bg-[#121216] border border-zinc-800 rounded-xl shadow-2xl overflow-hidden flex flex-col font-sans select-none"
+        className="w-[580px] max-w-[92vw] bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-2xl overflow-hidden flex flex-col font-sans"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
-        {/* Search Input Bar */}
-        <div className="flex items-center px-3.5 py-3 border-b border-zinc-800 gap-2.5">
-          <Search size={16} className="text-zinc-500" />
+        {/* VS Code Quick Open Input Bar */}
+        <div className="flex items-center px-3 py-2 border-b border-[#3e3e42] bg-[#1e1e1e] gap-2">
+          <Search size={15} className="text-[#858585]" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search Python AST symbols, classes, functions..."
-            className="flex-1 bg-transparent border-none text-zinc-100 placeholder-zinc-500 text-xs focus:outline-none font-mono"
+            placeholder="Type symbol name to navigate (functions, classes, files)..."
+            className="flex-1 bg-transparent border-none text-[#cccccc] placeholder-[#858585] text-xs focus:outline-none font-sans"
           />
           {query && (
             <button
               onClick={() => setQuery('')}
-              className="text-zinc-500 hover:text-zinc-300 p-0.5 rounded"
+              className="text-[#858585] hover:text-[#cccccc] p-0.5 rounded-[2px]"
             >
               <X size={14} />
             </button>
           )}
-          <kbd className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-zinc-800 text-zinc-400 border border-zinc-700/60">
+          <kbd className="px-1.5 py-0.2 rounded-[2px] text-[10px] font-mono bg-[#2d2d2d] text-[#858585] border border-[#3e3e42]">
             esc
           </kbd>
         </div>
 
         {/* Results List */}
-        <div className="max-h-[340px] overflow-y-auto p-1.5 space-y-0.5 code-scroll">
+        <div className="max-h-[340px] overflow-y-auto p-1 space-y-0.5 code-scroll bg-[#252526]">
           {filteredNodes.length === 0 ? (
-            <div className="p-8 text-center text-zinc-500 font-mono text-xs">
+            <div className="p-8 text-center text-[#858585] font-mono text-xs">
               No matching AST symbols found for "{query}"
             </div>
           ) : (
@@ -101,33 +101,33 @@ export const CommandPaletteModal: React.FC = () => {
                   key={node.id}
                   onClick={() => handleSelect(node)}
                   onMouseEnter={() => setSelectedIndex(index)}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between px-2.5 py-1 rounded-[2px] cursor-pointer transition-colors ${
                     isSelected
-                      ? 'bg-blue-600/20 text-blue-200 border border-blue-500/40'
-                      : 'text-zinc-300 hover:bg-zinc-800/50'
+                      ? 'bg-[#094771] text-[#ffffff] font-medium'
+                      : 'text-[#cccccc] hover:bg-[#2a2d2e]'
                   }`}
                 >
-                  <div className="flex items-center space-x-2.5 truncate">
+                  <div className="flex items-center space-x-2 truncate">
                     <span
-                      className={`text-[9px] font-mono px-1.5 py-0.5 rounded uppercase font-semibold ${
+                      className={`text-[9px] font-mono px-1 py-0.2 rounded-[1px] uppercase font-semibold ${
                         isClass
-                          ? 'bg-amber-500/20 text-amber-400'
-                          : 'bg-zinc-800 text-zinc-400'
+                          ? 'text-[#4ec9b0] bg-[#203330]'
+                          : 'text-[#dcdcaa] bg-[#333220]'
                       }`}
                     >
                       {isClass ? 'cls' : 'fn'}
                     </span>
-                    <span className="font-mono text-xs font-medium text-zinc-100 truncate">
+                    <span className={`font-mono text-xs truncate ${isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'}`}>
                       {node.name}
                     </span>
-                    <span className="text-[11px] font-mono text-zinc-500 truncate">
+                    <span className="text-[11px] font-mono text-[#858585] truncate">
                       {node.filename}
                     </span>
                   </div>
 
-                  <div className="flex items-center space-x-2 text-[10px] font-mono text-zinc-500">
+                  <div className="flex items-center space-x-2 text-[10px] font-mono text-[#858585]">
                     <span>L{node.line}</span>
-                    {isSelected && <ArrowRight size={12} className="text-blue-400" />}
+                    {isSelected && <ArrowRight size={12} className="text-[#ffffff]" />}
                   </div>
                 </div>
               );
@@ -136,7 +136,7 @@ export const CommandPaletteModal: React.FC = () => {
         </div>
 
         {/* Modal Footer Keybinds */}
-        <div className="px-3.5 py-2 border-t border-zinc-800 bg-[#0e0e11] flex items-center justify-between text-[11px] font-mono text-zinc-500">
+        <div className="px-3 py-1.5 border-t border-[#3e3e42] bg-[#2d2d2d] flex items-center justify-between text-[11px] font-mono text-[#858585]">
           <div className="flex items-center space-x-3">
             <span>↑↓ Navigate</span>
             <span>↵ Select</span>

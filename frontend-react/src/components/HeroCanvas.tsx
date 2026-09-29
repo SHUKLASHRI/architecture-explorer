@@ -10,8 +10,6 @@ export const HeroCanvas: React.FC = () => {
     selectNode,
     analysisMode,
     setAnalysisMode,
-    layoutAlgorithm,
-    toggleLayoutAlgorithm,
     zoom,
     adjustZoom,
     resetZoom,
@@ -21,7 +19,6 @@ export const HeroCanvas: React.FC = () => {
     setDepthHops,
     activeCycles,
     deadFunctions,
-    impact,
     focusMode,
     toggleFocusMode,
     isEditorFocused,
@@ -29,6 +26,10 @@ export const HeroCanvas: React.FC = () => {
     updateNodePosition,
     resetNodePositions,
     minimizeAllPanels,
+    isLoading,
+    error,
+    loadProject,
+    projectPath,
   } = useExplorer();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -97,44 +98,41 @@ export const HeroCanvas: React.FC = () => {
     if (tiers.length === 0) return posMap;
 
     const colCount = tiers.length;
-    const xMargin = 100;
-    const availableWidth = Math.max(containerSize.width - 2 * xMargin, 680);
-    const colSpacing = availableWidth / (colCount - 1 || 1);
+    const xMargin = 80;
+    const yMargin = 90;
+    const availableWidth = Math.max(containerSize.width - 2 * xMargin, 600);
+    const colSpacing = colCount > 1 ? availableWidth / (colCount - 1) : 320;
 
-    tiers.forEach((tierNodes, colIdx) => {
-      const x = xMargin + colIdx * colSpacing;
-      const rowCount = tierNodes.length;
-      const ySpacing = 140;
-      const totalColHeight = (rowCount - 1) * ySpacing;
-      const startY = Math.max((containerSize.height - totalColHeight) / 2, 80);
-
-      tierNodes.forEach((node, rowIdx) => {
-        posMap.set(node.id, {
-          x: Math.round(x),
-          y: Math.round(startY + rowIdx * ySpacing),
-        });
+    tiers.forEach((tierGroup, colIdx) => {
+      const x = xMargin + colIdx * Math.min(colSpacing, 340);
+      const rowSpacing = 110;
+      tierGroup.forEach((node, rowIdx) => {
+        const y = yMargin + rowIdx * rowSpacing;
+        posMap.set(node.id, { x, y });
       });
     });
 
     return posMap;
   }, [nodes, containerSize]);
 
-  // Combined positions: base positions + user-dragged custom overrides
+  // Merge base positions with user-dragged custom positions
   const effectivePositions = useMemo(() => {
     const map = new Map<string, { x: number; y: number }>();
-    baseNodePositions.forEach((pos, id) => {
-      map.set(id, pos);
-    });
-    Object.entries(nodeCustomPositions).forEach(([id, pos]) => {
-      map.set(id, pos);
+    nodes.forEach((n) => {
+      if (nodeCustomPositions[n.id]) {
+        map.set(n.id, nodeCustomPositions[n.id]);
+      } else if (baseNodePositions.has(n.id)) {
+        map.set(n.id, baseNodePositions.get(n.id)!);
+      } else {
+        map.set(n.id, { x: 120, y: 120 });
+      }
     });
     return map;
-  }, [baseNodePositions, nodeCustomPositions]);
+  }, [nodes, baseNodePositions, nodeCustomPositions]);
 
-  // Center & Fit View functionality
+  // Center & Fit View calculation
   const handleFitView = useCallback(() => {
     if (nodes.length === 0) return;
-
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
@@ -142,52 +140,84 @@ export const HeroCanvas: React.FC = () => {
 
     effectivePositions.forEach((pos) => {
       minX = Math.min(minX, pos.x);
-      maxX = Math.max(maxX, pos.x + 230);
+      maxX = Math.max(maxX, pos.x + 220);
       minY = Math.min(minY, pos.y);
-      maxY = Math.max(maxY, pos.y + 90);
+      maxY = Math.max(maxY, pos.y + 100);
     });
+
+    if (minX === Infinity) return;
 
     const graphWidth = maxX - minX;
     const graphHeight = maxY - minY;
-
-    if (graphWidth <= 0 || graphHeight <= 0) return;
-
-    const padding = 120;
-    const scaleX = (containerSize.width - padding) / graphWidth;
-    const scaleY = (containerSize.height - padding) / graphHeight;
-    const newZoom = Math.min(Math.max(Math.min(scaleX, scaleY), 0.5), 1.15);
+    const scaleX = (containerSize.width - 160) / Math.max(graphWidth, 100);
+    const scaleY = (containerSize.height - 160) / Math.max(graphHeight, 100);
+    const fitScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.5), 1.2);
 
     const centerX = (minX + maxX) / 2;
     const centerY = (minY + maxY) / 2;
 
-    const offsetX = containerSize.width / 2 - centerX * newZoom;
-    const offsetY = containerSize.height / 2 - centerY * newZoom;
+    setPanOffset({
+      x: containerSize.width / 2 - centerX * fitScale,
+      y: containerSize.height / 2 - centerY * fitScale,
+    });
+  }, [nodes, effectivePositions, containerSize]);
 
-    setPanOffset({ x: Math.round(offsetX), y: Math.round(offsetY) });
-  }, [containerSize, effectivePositions, nodes.length]);
-
-  // Auto-fit on initial load
+  // Auto-center on initial nodes load
   useEffect(() => {
     if (nodes.length > 0) {
       handleFitView();
     }
   }, [nodes.length]);
 
-  // Canvas Mouse Down (Simply click and move cursor to pan the canvas/editor)
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    // Only primary button (left click) or middle button
-    if (e.button === 0 || e.button === 1 || e.altKey) {
-      isPanning.current = true;
-      hasMovedPan.current = false;
-      clickStartPos.current = { x: e.clientX, y: e.clientY };
-      panStart.current = { x: e.clientX - panOffset.x, y: e.clientY - panOffset.y };
-      setIsCurrentlyPanning(true);
+  // Active callers & callees for highlighting
+  const activeNodeIds = useMemo(() => {
+    if (!selectedNode) return new Set<string>();
+    const set = new Set<string>([selectedNode.id]);
+
+    let frontier = [selectedNode.id];
+    for (let hop = 0; hop < depthHops; hop++) {
+      const nextFrontier: string[] = [];
+      edges.forEach((e) => {
+        if (frontier.includes(e.source) && !set.has(e.target)) {
+          set.add(e.target);
+          nextFrontier.push(e.target);
+        }
+        if (frontier.includes(e.target) && !set.has(e.source)) {
+          set.add(e.source);
+          nextFrontier.push(e.source);
+        }
+      });
+      frontier = nextFrontier;
     }
+    return set;
+  }, [selectedNode, edges, depthHops]);
+
+  // Dead node ids
+  const deadNodeIds = useMemo(() => {
+    return new Set(deadFunctions.map((df) => df.id || df.name));
+  }, [deadFunctions]);
+
+  // Mouse drag handling (Pan canvas or Drag node)
+  const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.target !== containerRef.current && (e.target as HTMLElement).tagName !== 'svg') {
+      return;
+    }
+
+    clickStartPos.current = { x: e.clientX, y: e.clientY };
+    hasMovedPan.current = false;
+    isPanning.current = true;
+    panStart.current = {
+      x: e.clientX - panOffset.x,
+      y: e.clientY - panOffset.y,
+    };
+    setIsCurrentlyPanning(true);
   };
 
-  // Node Drag Start
   const handleNodeMouseDown = (e: React.MouseEvent, node: GraphNode) => {
     e.stopPropagation();
+    clickStartPos.current = { x: e.clientX, y: e.clientY };
+    hasMovedPan.current = false;
+
     selectNode(node);
 
     const currentPos = effectivePositions.get(node.id) || { x: 0, y: 0 };
@@ -201,23 +231,26 @@ export const HeroCanvas: React.FC = () => {
     setActiveDraggingId(node.id);
   };
 
-  // Global Mouse Move (Canvas pan or Node drag)
   const handleMouseMove = (e: React.MouseEvent) => {
+    // 1. Dragging Node
     if (draggedNode.current) {
-      // Delta in screen pixels adjusted by canvas zoom scale
-      const deltaX = (e.clientX - draggedNode.current.startMouseX) / zoom;
-      const deltaY = (e.clientY - draggedNode.current.startMouseY) / zoom;
-
-      const newX = Math.round(draggedNode.current.startNodeX + deltaX);
-      const newY = Math.round(draggedNode.current.startNodeY + deltaY);
-
-      updateNodePosition(draggedNode.current.id, { x: newX, y: newY });
+      const dx = (e.clientX - draggedNode.current.startMouseX) / zoom;
+      const dy = (e.clientY - draggedNode.current.startMouseY) / zoom;
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        hasMovedPan.current = true;
+      }
+      updateNodePosition(draggedNode.current.id, {
+        x: Math.round(draggedNode.current.startNodeX + dx),
+        y: Math.round(draggedNode.current.startNodeY + dy),
+      });
       return;
     }
 
+    // 2. Panning Canvas
     if (isPanning.current) {
-      const dist = Math.hypot(e.clientX - clickStartPos.current.x, e.clientY - clickStartPos.current.y);
-      if (dist > 3) {
+      const dx = e.clientX - clickStartPos.current.x;
+      const dy = e.clientY - clickStartPos.current.y;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
         hasMovedPan.current = true;
       }
       setPanOffset({
@@ -227,46 +260,26 @@ export const HeroCanvas: React.FC = () => {
     }
   };
 
-  // Global Mouse Up
   const handleMouseUp = () => {
-    if (isPanning.current) {
-      if (!hasMovedPan.current) {
-        // Was a simple click on canvas without dragging -> auto-minimize peeks & deselect
-        minimizeAllPanels();
-        selectNode(null);
-      }
-      isPanning.current = false;
-      setIsCurrentlyPanning(false);
+    // Click on background canvas (without dragging) minimizes sidebars
+    if (isPanning.current && !hasMovedPan.current) {
+      minimizeAllPanels();
     }
+
+    isPanning.current = false;
+    setIsCurrentlyPanning(false);
     draggedNode.current = null;
     setActiveDraggingId(null);
   };
 
-  // Wheel zoom
+  // Canvas zoom with mouse wheel
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
-      const delta = e.deltaY < 0 ? 0.08 : -0.08;
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
       adjustZoom(delta);
     }
   };
-
-  // Set of connected nodes for highlighting
-  const activeNodeIds = useMemo(() => {
-    const set = new Set<string>();
-    if (!selectedNode) return set;
-    set.add(selectedNode.id);
-
-    if (impact) {
-      impact.direct_callers?.forEach((id) => set.add(id));
-      impact.direct_callees?.forEach((id) => set.add(id));
-    }
-    return set;
-  }, [selectedNode, impact]);
-
-  const deadNodeIds = useMemo(() => {
-    return new Set(deadFunctions.map((d) => d.id));
-  }, [deadFunctions]);
 
   const isDimmed = focusMode || isEditorFocused;
 
@@ -274,7 +287,7 @@ export const HeroCanvas: React.FC = () => {
     <main
       ref={containerRef}
       id="canvasContainer"
-      className={`absolute inset-0 w-full h-full bg-[#09090b] overflow-hidden select-none ${
+      className={`absolute inset-0 w-full h-full bg-[#1e1e1e] overflow-hidden select-none ${
         activeDraggingId || isCurrentlyPanning
           ? 'cursor-grabbing'
           : 'cursor-grab'
@@ -284,37 +297,36 @@ export const HeroCanvas: React.FC = () => {
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
     >
-      {/* Subtle Dot Grid Background */}
+      {/* VS Code Subtle Dot Grid Background */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: 'radial-gradient(circle, #27272a 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-          opacity: 0.55,
+          backgroundImage: 'radial-gradient(circle, #2d2d2d 1.2px, transparent 1.2px)',
+          backgroundSize: '20px 20px',
         }}
       />
 
       {/* TOP FLOATING OPTIONS HUD */}
       <div
-        className={`absolute top-4 left-1/2 -translate-x-1/2 z-30 transition-all duration-300 pointer-events-auto ${
+        className={`absolute top-14 left-1/2 -translate-x-1/2 z-30 transition-all duration-200 pointer-events-auto ${
           isDimmed
             ? 'opacity-25 hover:opacity-100 scale-95'
             : 'opacity-100 scale-100'
         }`}
       >
-        <div className="bg-[#121216]/85 backdrop-blur-xl border border-white/10 rounded-2xl px-3 py-1.5 shadow-2xl flex items-center gap-2">
+        <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2.5 py-1 shadow-lg flex items-center gap-2">
           {/* Target Focus Chip */}
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 bg-[#181820] rounded-xl border border-white/5 text-[11px] font-mono">
-            <span className="text-zinc-500 font-medium">Focus:</span>
-            <span className="font-semibold text-blue-400 truncate max-w-[140px]">
-              {selectedNode ? selectedNode.name : 'Full Architecture'}
+          <div className="flex items-center space-x-1.5 px-2 py-0.5 bg-[#1e1e1e] rounded-[2px] border border-[#3e3e42] text-[11px] font-mono">
+            <span className="text-[#858585]">Focus:</span>
+            <span className="font-medium text-[#dcdcaa] truncate max-w-[130px]">
+              {selectedNode ? selectedNode.name : 'All Symbols'}
             </span>
           </div>
 
-          <div className="h-4 w-[1px] bg-zinc-800" />
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
 
           {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-1 bg-[#181820] p-0.5 rounded-xl border border-white/5">
+          <div className="flex items-center gap-1 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
             {(
               [
                 { id: 'default', label: 'Architecture', icon: 'account_tree' },
@@ -328,10 +340,10 @@ export const HeroCanvas: React.FC = () => {
                 <button
                   key={m.id}
                   onClick={() => setAnalysisMode(m.id as AnalysisMode)}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-medium flex items-center gap-1.5 transition-all ${
+                  className={`px-2 py-0.5 rounded-[2px] text-[11px] font-sans flex items-center gap-1 transition-colors ${
                     active
-                      ? 'bg-blue-600 text-white font-semibold shadow-md shadow-blue-600/30'
-                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                      ? 'bg-[#094771] text-[#ffffff] font-medium border border-[#007acc]'
+                      : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
                   }`}
                   title={`${m.label} Mode`}
                 >
@@ -344,20 +356,20 @@ export const HeroCanvas: React.FC = () => {
             })}
           </div>
 
-          <div className="h-4 w-[1px] bg-zinc-800" />
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
 
           {/* Depth Slider */}
-          <div className="flex items-center gap-1.5 px-1 text-[11px] font-mono text-zinc-400">
-            <span className="text-zinc-500">Hops:</span>
+          <div className="flex items-center gap-1 px-1 text-[11px] font-mono text-[#858585]">
+            <span>Hops:</span>
             <div className="flex gap-0.5">
               {[1, 2, 3, 4].map((d) => (
                 <button
                   key={d}
                   onClick={() => setDepthHops(d)}
-                  className={`w-5 h-5 rounded-md text-[10px] flex items-center justify-center font-bold transition-all ${
+                  className={`w-4 h-4 rounded-[2px] text-[10px] flex items-center justify-center font-bold transition-colors ${
                     depthHops === d
-                      ? 'bg-zinc-700 text-white'
-                      : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
+                      ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                      : 'text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
                   }`}
                 >
                   {d}
@@ -366,7 +378,7 @@ export const HeroCanvas: React.FC = () => {
             </div>
           </div>
 
-          <div className="h-4 w-[1px] bg-zinc-800" />
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
 
           {/* Reset / Reorganize Layout Button */}
           <button
@@ -374,7 +386,7 @@ export const HeroCanvas: React.FC = () => {
               resetNodePositions();
               handleFitView();
             }}
-            className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 rounded-lg transition-colors text-[11px]"
+            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors text-[11px]"
             title="Auto-organize / Reset Node Layout"
           >
             <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
@@ -385,10 +397,10 @@ export const HeroCanvas: React.FC = () => {
           {/* Focus / Zen Mode Button */}
           <button
             onClick={toggleFocusMode}
-            className={`p-1.5 rounded-lg text-[11px] flex items-center transition-colors ${
+            className={`p-1 rounded-[2px] text-[11px] flex items-center transition-colors ${
               focusMode
-                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
             }`}
             title={focusMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
           >
@@ -401,24 +413,24 @@ export const HeroCanvas: React.FC = () => {
 
       {/* BOTTOM FLOATING CANVAS TOOLBAR */}
       <div
-        className={`absolute bottom-5 left-1/2 -translate-x-1/2 z-30 transition-all duration-300 pointer-events-auto ${
+        className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-30 transition-all duration-200 pointer-events-auto ${
           isDimmed ? 'opacity-25 hover:opacity-100' : 'opacity-100'
         }`}
       >
-        <div className="bg-[#121216]/85 backdrop-blur-xl border border-white/10 rounded-2xl px-2.5 py-1.5 shadow-2xl flex items-center gap-1.5">
+        <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2 py-1 shadow-lg flex items-center gap-1">
           <button
             onClick={() => adjustZoom(-0.1)}
-            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-lg transition-colors"
+            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
             title="Zoom Out"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
               remove
             </span>
           </button>
 
           <span
             onClick={resetZoom}
-            className="font-mono text-[11px] text-zinc-400 hover:text-zinc-100 px-1 cursor-pointer select-none"
+            className="font-mono text-[11px] text-[#cccccc] hover:text-[#ffffff] px-1 cursor-pointer select-none"
             title="Reset Zoom to 100%"
           >
             {Math.round(zoom * 100)}%
@@ -426,94 +438,130 @@ export const HeroCanvas: React.FC = () => {
 
           <button
             onClick={() => adjustZoom(0.1)}
-            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-lg transition-colors"
+            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
             title="Zoom In"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
               add
             </span>
           </button>
 
-          <div className="h-4 w-[1px] bg-zinc-800 mx-0.5" />
+          <div className="h-4 w-[1px] bg-[#3e3e42] mx-0.5" />
 
           <button
             onClick={handleFitView}
-            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-lg transition-colors"
+            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
             title="Fit Graph to Screen"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
               fit_screen
             </span>
           </button>
 
           <button
             onClick={togglePan}
-            className={`p-1.5 rounded-lg transition-colors ${
+            className={`p-1 rounded-[2px] transition-colors ${
               panActive
-                ? 'bg-blue-600 text-white'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60'
+                ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
             }`}
-            title="Toggle Pan Mode (or Alt+Drag)"
+            title="Toggle Pan Hand Tool"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
               pan_tool
-            </span>
-          </button>
-
-          <button
-            onClick={toggleLayoutAlgorithm}
-            className="p-1.5 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 rounded-lg transition-colors"
-            title={`Toggle Layout: ${layoutAlgorithm}`}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-              auto_awesome_motion
             </span>
           </button>
         </div>
       </div>
 
-      {/* SVG Canvas & Node Elements with Pan / Zoom transform */}
+      {/* EMPTY / LOADING / ERROR SKELETON */}
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center select-none pointer-events-auto">
+          {isLoading ? (
+            <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] p-6 shadow-xl max-w-sm flex flex-col items-center gap-3">
+              <div className="w-5 h-5 border-2 border-[#007acc] border-t-transparent rounded-full animate-spin" />
+              <div className="text-xs font-semibold text-[#ffffff]">Analyzing Python Project...</div>
+              <p className="text-[11px] text-[#858585] leading-relaxed">
+                Parsing AST, extracting functions, classes, dependencies and McCabe cyclomatic complexity metrics.
+              </p>
+            </div>
+          ) : error ? (
+            <div className="bg-[#252526] border border-[#f14c4c]/40 rounded-[3px] p-6 shadow-xl max-w-md flex flex-col items-center gap-3">
+              <span className="material-symbols-outlined text-[#f14c4c] text-3xl">error</span>
+              <div className="text-xs font-semibold text-[#ffffff]">Architecture Analysis Error</div>
+              <p className="text-[11px] text-[#858585] leading-relaxed font-mono">
+                {error}
+              </p>
+              <button
+                onClick={() => loadProject(projectPath, true)}
+                className="mt-2 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-1.5 rounded-[2px] text-xs transition-colors"
+              >
+                Retry Analysis
+              </button>
+            </div>
+          ) : (
+            <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] p-6 shadow-xl max-w-sm flex flex-col items-center gap-3">
+              <span className="material-symbols-outlined text-[#858585] text-3xl">folder_off</span>
+              <div className="text-xs font-semibold text-[#ffffff]">No Python Symbols Discovered</div>
+              <p className="text-[11px] text-[#858585] leading-relaxed">
+                No valid Python files were detected in this folder. Open another folder or select the sample project.
+              </p>
+              <button
+                onClick={() => loadProject('sample_project', true)}
+                className="mt-2 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-1.5 rounded-[2px] text-xs transition-colors"
+              >
+                Load Sample Project
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* GRAPH CANVAS VIEWPORT */}
       <div
-        className="w-full h-full transform-gpu origin-top-left"
         style={{
           transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
+          transformOrigin: '0 0',
+          width: '5000px',
+          height: '5000px',
         }}
+        className="absolute top-0 left-0 pointer-events-none"
       >
-        {/* SVG Bezier Connection Ribbons */}
-        <svg className="absolute inset-0 w-[6000px] h-[6000px] pointer-events-none overflow-visible">
+        {/* SVG BEZIER CONNECTION CABLES */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
           <defs>
             <marker
               id="arrow-default"
               viewBox="0 0 10 10"
-              refX="6"
+              refX="8"
               refY="5"
               markerWidth="6"
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 1 L 8 5 L 0 9 z" fill="#3f3f46" />
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="#5a5a5a" />
             </marker>
             <marker
               id="arrow-active"
               viewBox="0 0 10 10"
-              refX="6"
+              refX="8"
               refY="5"
               markerWidth="6"
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6" />
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="#007acc" />
             </marker>
             <marker
               id="arrow-cycle"
               viewBox="0 0 10 10"
-              refX="6"
+              refX="8"
               refY="5"
               markerWidth="6"
               markerHeight="6"
               orient="auto-start-reverse"
             >
-              <path d="M 0 1 L 8 5 L 0 9 z" fill="#f59e0b" />
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="#cca700" />
             </marker>
           </defs>
 
@@ -524,9 +572,9 @@ export const HeroCanvas: React.FC = () => {
 
             // Connection points: right edge of source card to left edge of target card
             const startX = sourcePos.x + 220;
-            const startY = sourcePos.y + 40;
+            const startY = sourcePos.y + 36;
             const endX = targetPos.x;
-            const endY = targetPos.y + 40;
+            const endY = targetPos.y + 36;
 
             const dx = endX - startX;
             const cp1X = startX + Math.max(dx * 0.45, 40);
@@ -546,19 +594,19 @@ export const HeroCanvas: React.FC = () => {
                 (c) => c.includes(edge.source) && c.includes(edge.target)
               );
 
-            let strokeColor = '#3f3f46';
-            let strokeWidth = 1.5;
+            let strokeColor = '#454545';
+            let strokeWidth = 1.2;
             let marker = 'url(#arrow-default)';
             let dashClass = '';
 
             if (isCycle) {
-              strokeColor = '#f59e0b';
-              strokeWidth = 2.2;
+              strokeColor = '#cca700';
+              strokeWidth = 2.0;
               marker = 'url(#arrow-cycle)';
               dashClass = 'cycle-cable';
             } else if (isEdgeActive) {
-              strokeColor = '#3b82f6';
-              strokeWidth = 2;
+              strokeColor = '#007acc';
+              strokeWidth = 1.8;
               marker = 'url(#arrow-active)';
               dashClass = 'flow-cable';
             }
@@ -577,7 +625,7 @@ export const HeroCanvas: React.FC = () => {
           })}
         </svg>
 
-        {/* DRAGGABLE GRAPH NODES */}
+        {/* DRAGGABLE VS CODE STYLE GRAPH NODES */}
         {nodes.map((node) => {
           const pos = effectivePositions.get(node.id);
           if (!pos) return null;
@@ -588,24 +636,24 @@ export const HeroCanvas: React.FC = () => {
           const isClass = node.kind === 'class';
           const isDragging = activeDraggingId === node.id;
 
-          let borderClass = 'border-white/10 hover:border-zinc-500';
-          let bgClass = 'bg-[#121217]/95 backdrop-blur-md';
+          let borderClass = 'border-[#3e3e42] hover:border-[#606060]';
+          let bgClass = 'bg-[#252526]';
           let opacityClass = 'opacity-100';
 
           if (isDragging) {
-            borderClass = 'border-blue-400 ring-2 ring-blue-500/50 shadow-2xl scale-105';
-            bgClass = 'bg-[#161622]';
+            borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-xl';
+            bgClass = 'bg-[#2d2d30]';
           } else if (isSelected) {
-            borderClass = 'border-blue-500 ring-1 ring-blue-500/50 shadow-xl shadow-blue-500/10';
-            bgClass = 'bg-[#14141e]';
+            borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-lg';
+            bgClass = 'bg-[#2d2d30]';
           } else if (isConnected) {
-            borderClass = 'border-blue-500/40';
-            bgClass = 'bg-[#13131a]';
+            borderClass = 'border-[#007acc]/70';
+            bgClass = 'bg-[#252528]';
           } else if (analysisMode === 'deadcode' && isDead) {
-            borderClass = 'border-rose-500/60';
-            bgClass = 'bg-[#1a1215]';
+            borderClass = 'border-[#f14c4c]';
+            bgClass = 'bg-[#2b2020]';
           } else if (selectedNode && !isConnected) {
-            opacityClass = 'opacity-40 hover:opacity-90';
+            opacityClass = 'opacity-35 hover:opacity-90';
           }
 
           return (
@@ -616,40 +664,42 @@ export const HeroCanvas: React.FC = () => {
                 transform: `translate(${pos.x}px, ${pos.y}px)`,
                 width: '220px',
               }}
-              className={`absolute top-0 left-0 rounded-2xl border p-3.5 cursor-grab active:cursor-grabbing transition-shadow duration-150 select-none shadow-lg ${borderClass} ${bgClass} ${opacityClass}`}
+              className={`absolute top-0 left-0 rounded-[3px] border p-2.5 cursor-grab active:cursor-grabbing transition-all duration-150 select-none shadow-md pointer-events-auto ${borderClass} ${bgClass} ${opacityClass}`}
             >
               {/* Header: Kind Badge, Tier & File */}
               <div className="flex items-center justify-between mb-1.5 pointer-events-none gap-1">
                 <div className="flex items-center gap-1">
                   <span
-                    className={`text-[9px] font-mono px-1.5 py-0.5 rounded-md uppercase font-semibold tracking-wider ${
+                    className={`text-[9px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-semibold tracking-wider ${
                       isClass
-                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                        : 'bg-zinc-800 text-zinc-400'
+                        ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
+                        : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
                     }`}
                   >
-                    {isClass ? 'class' : node.is_async ? 'async' : 'fn'}
+                    {isClass ? 'class' : node.is_async ? 'async fn' : 'fn'}
                   </span>
                   {node.tier && (
-                    <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-zinc-800/80 text-zinc-400 uppercase">
+                    <span className="text-[8px] font-mono px-1 py-0.2 rounded-[2px] bg-[#1e1e1e] text-[#858585] uppercase border border-[#3e3e42]">
                       {node.tier}
                     </span>
                   )}
                 </div>
 
-                <span className="text-[10px] font-mono text-zinc-500 truncate max-w-[90px]">
+                <span className="text-[10px] font-mono text-[#858585] truncate max-w-[90px]">
                   {node.filename}
                 </span>
               </div>
 
-              {/* Symbol Name with drag indicator */}
-              <div className="font-mono text-xs font-semibold text-zinc-100 truncate flex items-center justify-between pointer-events-none">
+              {/* Symbol Name with VS Code syntax color */}
+              <div className="font-mono text-xs font-semibold truncate flex items-center justify-between pointer-events-none">
                 <div className="truncate">
-                  <span>{node.name}</span>
-                  <span className="text-zinc-500 font-normal">()</span>
+                  <span className={isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'}>
+                    {node.name}
+                  </span>
+                  <span className="text-[#858585] font-normal">()</span>
                 </div>
                 <span
-                  className="material-symbols-outlined text-zinc-600 opacity-0 group-hover:opacity-100"
+                  className="material-symbols-outlined text-[#858585] opacity-0 group-hover:opacity-100"
                   style={{ fontSize: 13 }}
                 >
                   drag_indicator
@@ -657,24 +707,24 @@ export const HeroCanvas: React.FC = () => {
               </div>
 
               {/* Sub-meta: Lines, params, and Cyclomatic Complexity */}
-              <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between text-[10px] font-mono text-zinc-500 pointer-events-none">
+              <div className="mt-2 pt-1.5 border-t border-[#3e3e42] flex items-center justify-between text-[10px] font-mono text-[#858585] pointer-events-none">
                 <span>L{node.line}</span>
                 <div className="flex items-center gap-1.5">
                   {node.cyclomatic_complexity !== undefined && node.cyclomatic_complexity !== null && (
                     <span
-                      className={`text-[9px] px-1 rounded font-semibold ${
+                      className={`text-[9px] px-1 rounded-[2px] font-semibold ${
                         node.complexity_rating === 'low'
-                          ? 'text-emerald-400 bg-emerald-500/10'
+                          ? 'text-[#4ec9b0] bg-[#203330]'
                           : node.complexity_rating === 'moderate'
-                          ? 'text-amber-400 bg-amber-500/10'
-                          : 'text-rose-400 bg-rose-500/10'
+                          ? 'text-[#cca700] bg-[#333020]'
+                          : 'text-[#f14c4c] bg-[#332020]'
                       }`}
                     >
                       CC {node.cyclomatic_complexity}
                     </span>
                   )}
                   {Array.isArray(node.parameters) && node.parameters.length > 0 && (
-                    <span className="text-zinc-400">
+                    <span className="text-[#858585]">
                       {node.parameters.length}p
                     </span>
                   )}

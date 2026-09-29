@@ -16,7 +16,6 @@ export const ProjectSidebar: React.FC = () => {
     leftPanelHovered,
     setLeftPanelHovered,
     projectPath,
-    modules,
     layers,
     diagnostics,
     projectMeta,
@@ -64,50 +63,50 @@ export const ProjectSidebar: React.FC = () => {
 
   const isUnfolded = leftPanelOpen || leftPanelHovered;
 
-  // MINIMIZED STATE: Sleek floating dock pill on the left edge
+  // MINIMIZED STATE: Sleek VS Code docked pill on the left
   if (!isUnfolded) {
     return (
       <div
         onMouseEnter={() => setLeftPanelHovered(true)}
         onClick={() => setLeftPanelOpen(true)}
-        className="absolute left-4 top-16 z-40 bg-[#121217]/90 hover:bg-[#181822] backdrop-blur-xl border border-white/10 hover:border-blue-500/50 rounded-2xl px-3 py-2 shadow-2xl cursor-pointer transition-all duration-200 flex items-center gap-2 group hover:scale-[1.02]"
-        title="Hover to peek, click to pin open"
+        className="absolute left-3 top-14 z-40 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] px-2.5 py-1.5 shadow-lg cursor-pointer transition-colors flex items-center gap-2"
+        title="Hover to peek, click to pin open (Ctrl+B)"
       >
-        <span className="material-symbols-outlined text-blue-400 group-hover:text-blue-300" style={{ fontSize: 16 }}>
+        <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 15 }}>
           account_tree
         </span>
-        <span className="font-mono text-xs font-semibold text-zinc-200 tracking-tight">
+        <span className="font-mono text-xs font-medium text-[#cccccc] tracking-normal">
           {projectName}
         </span>
-        <span className="text-[10px] font-mono text-zinc-500 bg-zinc-800/80 px-1.5 py-0.5 rounded-full">
+        <span className="text-[10px] font-mono text-[#858585] bg-[#1e1e1e] border border-[#3e3e42] px-1 rounded-[2px]">
           {nodes.length}
         </span>
       </div>
     );
   }
 
-  // EXPANDED STATE: Floating Glass Sheet with hover auto-minimize & click-to-pin
+  // EXPANDED STATE: VS Code Primary Sidebar
   return (
     <aside
       style={{ width: `${sidebarWidth}px` }}
       onMouseEnter={() => setLeftPanelHovered(true)}
       onMouseLeave={() => setLeftPanelHovered(false)}
-      className="absolute left-4 top-16 bottom-5 bg-[#0e0e13]/92 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl z-40 flex flex-col justify-between overflow-hidden select-none transition-all duration-300 animate-in fade-in"
+      className="absolute left-3 top-14 bottom-6 bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-2xl z-40 flex flex-col justify-between overflow-hidden select-none transition-all duration-200"
       id="projectSidebar"
     >
       {/* Top Section */}
       <div className="flex flex-col flex-1 min-h-0">
-        {/* Floating Panel Header */}
-        <div className="h-11 px-3.5 border-b border-white/5 flex items-center justify-between bg-[#14141c]/50">
-          <div className="flex items-center space-x-2 truncate">
-            <span className="material-symbols-outlined text-blue-400" style={{ fontSize: 16 }}>
+        {/* Panel Header */}
+        <div className="h-9 px-3 border-b border-[#3e3e42] flex items-center justify-between bg-[#2d2d2d]">
+          <div className="flex items-center space-x-1.5 truncate">
+            <span className="material-symbols-outlined text-[#007acc]" style={{ fontSize: 15 }}>
               account_tree
             </span>
-            <span className="text-xs font-semibold text-zinc-100 tracking-tight truncate font-mono">
+            <span className="text-xs font-semibold text-[#ffffff] tracking-normal truncate font-sans uppercase text-[11px]">
               {projectName}
             </span>
             {!leftPanelOpen && (
-              <span className="text-[9px] font-mono text-zinc-400 bg-zinc-800/60 px-1.5 py-0.2 rounded-md">
+              <span className="text-[9px] font-mono text-[#858585] bg-[#1e1e1e] px-1 py-0.2 rounded-[2px] border border-[#3e3e42]">
                 peek
               </span>
             )}
@@ -117,14 +116,14 @@ export const ProjectSidebar: React.FC = () => {
             {/* Pin / Unpin button */}
             <button
               onClick={() => setLeftPanelOpen((prev) => !prev)}
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1 rounded-[2px] transition-colors ${
                 leftPanelOpen
-                  ? 'text-blue-400 bg-blue-500/20 border border-blue-500/30'
-                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60'
+                  ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
+                  : 'text-[#858585] hover:text-[#ffffff] hover:bg-[#383838]'
               }`}
               title={leftPanelOpen ? 'Pinned open (Click to unpin and auto-hide)' : 'Click to pin open'}
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+              <span className="material-symbols-outlined" style={{ fontSize: 14 }}>
                 {leftPanelOpen ? 'push_pin' : 'keep'}
               </span>
             </button>
@@ -135,26 +134,26 @@ export const ProjectSidebar: React.FC = () => {
                 setLeftPanelOpen(false);
                 setLeftPanelHovered(false);
               }}
-              className="p-1.5 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/60 rounded-lg transition-colors"
-              title="Fold panel"
+              className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] transition-colors"
+              title="Fold sidebar (Ctrl+B)"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
-                close_fullscreen
+              <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
+                close
               </span>
             </button>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex items-center px-2 py-1.5 border-b border-white/5 gap-1 bg-[#101017]">
+        {/* Navigation Tabs (VS Code style sub-tabs) */}
+        <div className="flex items-center px-1 border-b border-[#3e3e42] bg-[#252526]">
           {(['files', 'symbols', 'layers', 'metrics'] as SidebarTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setSidebarTab(tab)}
-              className={`flex-1 py-1 rounded-lg text-[10px] font-medium capitalize transition-all ${
+              className={`flex-1 py-1.5 text-[11px] font-sans capitalize transition-colors border-b-2 ${
                 sidebarTab === tab
-                  ? 'bg-zinc-800 text-zinc-100 font-semibold shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/40'
+                  ? 'border-[#007acc] text-[#ffffff] font-medium bg-[#1e1e1e]'
+                  : 'border-transparent text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
               }`}
             >
               {tab}
@@ -163,11 +162,11 @@ export const ProjectSidebar: React.FC = () => {
         </div>
 
         {/* Filter Input */}
-        <div className="p-2.5 border-b border-white/5">
+        <div className="p-2 border-b border-[#3e3e42] bg-[#252526]">
           <div className="relative flex items-center">
             <span
-              className="material-symbols-outlined absolute left-2 text-zinc-500 pointer-events-none"
-              style={{ fontSize: 14 }}
+              className="material-symbols-outlined absolute left-2 text-[#858585] pointer-events-none"
+              style={{ fontSize: 13 }}
             >
               search
             </span>
@@ -175,13 +174,13 @@ export const ProjectSidebar: React.FC = () => {
               type="text"
               value={treeFilter}
               onChange={(e) => setTreeFilter(e.target.value)}
-              placeholder="Filter architecture map..."
-              className="w-full bg-[#161620] border border-white/5 rounded-lg px-2.5 py-1 pl-7 text-[11px] text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500/50 transition-all font-mono"
+              placeholder="Filter architecture symbols..."
+              className="w-full bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] px-2 py-0.5 pl-6 text-[11px] text-[#cccccc] placeholder-[#858585] focus:outline-none focus:border-[#007acc] font-sans"
             />
             {treeFilter && (
               <button
                 onClick={() => setTreeFilter('')}
-                className="absolute right-2 text-zinc-500 hover:text-zinc-300"
+                className="absolute right-1.5 text-[#858585] hover:text-[#cccccc]"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: 13 }}>
                   close
@@ -192,109 +191,81 @@ export const ProjectSidebar: React.FC = () => {
         </div>
 
         {/* Tree Content */}
-        <div className="flex-1 overflow-y-auto tree-scroll py-1.5 px-2 space-y-2">
+        <div className="flex-1 overflow-y-auto tree-scroll py-1 px-1.5 space-y-1.5">
           {sidebarTab === 'files' && (
             <div>
               {filteredGroups.length === 0 ? (
-                <div className="p-4 text-center text-zinc-500 font-mono text-[11px]">
+                <div className="p-4 text-center text-[#858585] font-mono text-[11px]">
                   No matching files or symbols found.
                 </div>
               ) : (
-                filteredGroups.map(([filename, syms]) => {
-                  const modMeta = modules?.find(
-                    (m) => m.filename === filename || m.rel_path.endsWith(filename)
-                  );
-                  return (
-                    <div key={filename} className="mb-2.5">
-                      {/* File Header */}
-                      <div className="flex flex-col px-2 py-1 text-zinc-400 rounded-lg hover:bg-zinc-800/40 cursor-default group">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-1.5 truncate">
-                            <span
-                              className="material-symbols-outlined text-amber-500/80"
-                              style={{ fontSize: 14 }}
-                            >
-                              description
-                            </span>
-                            <span className="font-mono text-[11px] text-zinc-200 font-medium truncate">
-                              {filename}
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-mono text-zinc-500 group-hover:text-zinc-400">
-                            {syms.length} syms
-                          </span>
-                        </div>
+                filteredGroups.map(([filename, syms]) => (
+                  <div key={filename} className="mb-1.5">
+                    {/* File Header */}
+                    <div className="flex items-center space-x-1.5 py-1 px-1.5 text-[#cccccc] hover:bg-[#2a2d2e] rounded-[2px] group font-mono text-[11px]">
+                      <span className="material-symbols-outlined text-[#569cd6]" style={{ fontSize: 14 }}>
+                        description
+                      </span>
+                      <span className="font-medium truncate flex-1">{filename}</span>
+                      <span className="text-[10px] text-[#858585]">{syms.length}</span>
+                    </div>
 
-                        {/* Module Coupling Metrics */}
-                        {modMeta?.coupling && (
-                          <div className="flex items-center gap-2 mt-1 text-[9px] font-mono text-zinc-500">
-                            <span title="Afferent coupling (incoming module deps)">
-                              Ca: <span className="text-zinc-400">{modMeta.coupling.afferent_coupling_ca}</span>
-                            </span>
-                            <span>•</span>
-                            <span title="Efferent coupling (outgoing module deps)">
-                              Ce: <span className="text-zinc-400">{modMeta.coupling.efferent_coupling_ce}</span>
-                            </span>
-                            <span>•</span>
-                            <span title="Instability metric I = Ce / (Ca + Ce)">
-                              I: <span className="text-zinc-400">{modMeta.coupling.instability_metric}</span>
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                    {/* Symbols under file */}
+                    <div className="ml-3 pl-1.5 border-l border-[#3e3e42] space-y-0.5 mt-0.5">
+                      {syms.map((sym) => {
+                        const isSelected = selectedNode?.id === sym.id;
+                        const isClass = sym.kind === 'class';
+                        return (
+                          <div
+                            key={sym.id}
+                            onClick={() => selectNode(sym)}
+                            className={`flex items-center justify-between px-1.5 py-0.5 rounded-[2px] cursor-pointer text-[11px] font-mono transition-colors ${
+                              isSelected
+                                ? 'bg-[#094771] text-[#ffffff] font-medium border-l-2 border-[#007acc]'
+                                : 'text-[#cccccc] hover:bg-[#2a2d2e]'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-1.5 truncate">
+                              <span
+                                className={`text-[9px] font-mono px-1 py-0.2 rounded-[1px] uppercase font-semibold ${
+                                  isClass
+                                    ? 'text-[#4ec9b0] bg-[#203330]'
+                                    : 'text-[#dcdcaa] bg-[#333220]'
+                                }`}
+                              >
+                                {isClass ? 'C' : 'f'}
+                              </span>
+                              <span
+                                className={`truncate ${
+                                  isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'
+                                }`}
+                              >
+                                {sym.name}
+                              </span>
+                            </div>
 
-                      {/* Symbols under file */}
-                      <div className="ml-3 pl-2 border-l border-zinc-800/80 mt-0.5 space-y-0.5">
-                        {syms.map((sym) => {
-                          const isSelected = selectedNode?.id === sym.id;
-                          const isClass = sym.kind === 'class';
-                          return (
-                            <div
-                              key={sym.id}
-                              onClick={() => selectNode(sym)}
-                              className={`flex items-center justify-between px-2 py-1 rounded-lg cursor-pointer transition-all ${
-                                isSelected
-                                  ? 'bg-blue-600/25 text-blue-200 border border-blue-500/40 font-semibold'
-                                  : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
-                              }`}
-                            >
-                              <div className="flex items-center space-x-1.5 truncate">
+                            <div className="flex items-center gap-1 text-[10px] text-[#858585]">
+                              {sym.cyclomatic_complexity !== undefined && sym.cyclomatic_complexity !== null && (
                                 <span
-                                  className={`text-[9px] font-mono px-1 rounded uppercase tracking-wider ${
-                                    isClass
-                                      ? 'bg-amber-500/20 text-amber-400 font-semibold'
-                                      : 'bg-zinc-800 text-zinc-400'
+                                  className={`text-[9px] font-semibold ${
+                                    sym.complexity_rating === 'low'
+                                      ? 'text-[#4ec9b0]'
+                                      : sym.complexity_rating === 'moderate'
+                                      ? 'text-[#cca700]'
+                                      : 'text-[#f14c4c]'
                                   }`}
                                 >
-                                  {isClass ? 'cls' : 'fn'}
+                                  C{sym.cyclomatic_complexity}
                                 </span>
-                                <span className="font-mono text-[11px] truncate">{sym.name}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                {sym.cyclomatic_complexity !== undefined && sym.cyclomatic_complexity !== null && (
-                                  <span
-                                    className={`text-[9px] font-mono px-1 rounded ${
-                                      sym.complexity_rating === 'low'
-                                        ? 'text-emerald-400'
-                                        : sym.complexity_rating === 'moderate'
-                                        ? 'text-amber-400'
-                                        : 'text-rose-400'
-                                    }`}
-                                  >
-                                    C{sym.cyclomatic_complexity}
-                                  </span>
-                                )}
-                                <span className="text-[10px] font-mono text-zinc-600">
-                                  L{sym.line}
-                                </span>
-                              </div>
+                              )}
+                              <span>L{sym.line}</span>
                             </div>
-                          );
-                        })}
-                      </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })
+                  </div>
+                ))
               )}
             </div>
           )}
@@ -310,31 +281,37 @@ export const ProjectSidebar: React.FC = () => {
                     <div
                       key={sym.id}
                       onClick={() => selectNode(sym)}
-                      className={`flex items-center justify-between px-2.5 py-1 rounded-lg cursor-pointer transition-all ${
+                      className={`flex items-center justify-between px-2 py-0.5 rounded-[2px] cursor-pointer transition-colors ${
                         isSelected
-                          ? 'bg-blue-600/25 text-blue-200 border border-blue-500/40 font-semibold'
-                          : 'text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/50'
+                          ? 'bg-[#094771] text-[#ffffff] font-medium border-l-2 border-[#007acc]'
+                          : 'text-[#cccccc] hover:bg-[#2a2d2e]'
                       }`}
                     >
-                      <div className="flex items-center space-x-2 truncate">
+                      <div className="flex items-center space-x-1.5 truncate">
                         <span
-                          className={`text-[9px] font-mono px-1 rounded uppercase tracking-wider ${
+                          className={`text-[9px] font-mono px-1 py-0.2 rounded-[1px] uppercase font-semibold ${
                             isClass
-                              ? 'bg-amber-500/20 text-amber-400 font-semibold'
-                              : 'bg-zinc-800 text-zinc-400'
+                              ? 'text-[#4ec9b0] bg-[#203330]'
+                              : 'text-[#dcdcaa] bg-[#333220]'
                           }`}
                         >
-                          {isClass ? 'cls' : 'fn'}
+                          {isClass ? 'C' : 'f'}
                         </span>
-                        <span className="font-mono text-[11px] truncate">{sym.name}</span>
+                        <span
+                          className={`font-mono text-[11px] truncate ${
+                            isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'
+                          }`}
+                        >
+                          {sym.name}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] font-mono text-zinc-500">
+                      <div className="flex items-center gap-1 text-[10px] font-mono text-[#858585]">
                         {sym.tier && (
-                          <span className="text-[9px] text-zinc-400 bg-zinc-800 px-1 rounded">
+                          <span className="text-[9px] text-[#858585] bg-[#1e1e1e] border border-[#3e3e42] px-1 rounded-[1px]">
                             {sym.tier}
                           </span>
                         )}
-                        <span className="truncate max-w-[65px] text-zinc-600">{sym.filename}</span>
+                        <span className="truncate max-w-[65px] text-[#6e7681]">{sym.filename}</span>
                       </div>
                     </div>
                   );
@@ -346,17 +323,17 @@ export const ProjectSidebar: React.FC = () => {
             <div className="p-1 space-y-2 font-mono text-[11px]">
               {layers && Object.keys(layers).length > 0 ? (
                 Object.entries(layers).map(([tierName, nodeIds]) => (
-                  <div key={tierName} className="p-2.5 bg-[#161622] border border-white/5 rounded-xl">
-                    <div className="text-zinc-300 font-medium text-[11px] mb-1.5 flex items-center justify-between">
-                      <span className="uppercase tracking-wider text-blue-400">{tierName}</span>
-                      <span className="text-zinc-500 font-normal">{nodeIds.length} symbols</span>
+                  <div key={tierName} className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
+                    <div className="text-[#cccccc] font-medium text-[11px] mb-1 flex items-center justify-between">
+                      <span className="uppercase tracking-wider text-[#569cd6]">{tierName}</span>
+                      <span className="text-[#858585] font-normal">{nodeIds.length} symbols</span>
                     </div>
-                    <div className="space-y-1 max-h-28 overflow-y-auto tree-scroll">
+                    <div className="space-y-0.5 max-h-28 overflow-y-auto tree-scroll">
                       {nodeIds.map((nid) => (
                         <div
                           key={nid}
                           onClick={() => selectNodeById(nid)}
-                          className="text-[10px] text-zinc-400 hover:text-blue-300 hover:bg-zinc-800/50 px-1.5 py-0.5 rounded cursor-pointer truncate transition-colors"
+                          className="text-[10px] text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors"
                         >
                           • {nid}
                         </div>
@@ -365,7 +342,7 @@ export const ProjectSidebar: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div className="p-3 text-center text-zinc-500 text-[11px]">
+                <div className="p-3 text-center text-[#858585] text-[11px]">
                   No architectural layers discovered yet.
                 </div>
               )}
@@ -373,31 +350,31 @@ export const ProjectSidebar: React.FC = () => {
           )}
 
           {sidebarTab === 'metrics' && (
-            <div className="p-1 space-y-3 font-mono text-[11px]">
+            <div className="p-1 space-y-2 font-mono text-[11px]">
               {/* Circular Dependencies */}
-              <div className="p-2.5 bg-[#161622] border border-white/5 rounded-xl">
-                <div className="text-zinc-300 font-medium text-[11px] mb-1 flex items-center justify-between">
+              <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
+                <div className="text-[#cccccc] font-medium text-[11px] mb-1 flex items-center justify-between">
                   <span>Circular Cycles</span>
                   <span
                     className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
                       activeCycles.length === 0
-                        ? 'text-emerald-400 bg-emerald-500/10'
-                        : 'text-rose-400 bg-rose-500/10'
+                        ? 'text-[#4ec9b0] bg-[#203330]'
+                        : 'text-[#cca700] bg-[#333020]'
                     }`}
                   >
                     {activeCycles.length} detected
                   </span>
                 </div>
                 {activeCycles.length === 0 ? (
-                  <div className="text-[10px] text-zinc-500 italic mt-1">
+                  <div className="text-[10px] text-[#858585] italic mt-1">
                     Clean DAG — no recursive cycles.
                   </div>
                 ) : (
-                  <div className="space-y-1 mt-1.5">
+                  <div className="space-y-1 mt-1">
                     {activeCycles.map((cycle, idx) => (
                       <div
                         key={idx}
-                        className="text-[10px] text-rose-300 bg-rose-950/30 p-1.5 rounded border border-rose-500/20 truncate"
+                        className="text-[10px] text-[#cca700] bg-[#333020] p-1.5 rounded-[2px] border border-[#4d4a2a] truncate"
                       >
                         {cycle.join(' ⇄ ')}
                       </div>
@@ -407,27 +384,27 @@ export const ProjectSidebar: React.FC = () => {
               </div>
 
               {/* Dead Functions */}
-              <div className="p-2.5 bg-[#161622] border border-white/5 rounded-xl">
-                <div className="text-zinc-300 font-medium text-[11px] mb-1 flex items-center justify-between">
+              <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
+                <div className="text-[#cccccc] font-medium text-[11px] mb-1 flex items-center justify-between">
                   <span>Dead Functions</span>
-                  <span className="text-[10px] text-zinc-400">
+                  <span className="text-[10px] text-[#858585]">
                     {deadFunctions.length} unreferenced
                   </span>
                 </div>
                 {deadFunctions.length === 0 ? (
-                  <div className="text-[10px] text-zinc-500 italic mt-1">
+                  <div className="text-[10px] text-[#858585] italic mt-1">
                     No dead code detected.
                   </div>
                 ) : (
-                  <div className="space-y-1 mt-1.5 max-h-32 overflow-y-auto tree-scroll">
+                  <div className="space-y-0.5 mt-1 max-h-28 overflow-y-auto tree-scroll">
                     {deadFunctions.map((df) => (
                       <div
                         key={df.id}
                         onClick={() => selectNodeById(df.id)}
-                        className="text-[10px] text-amber-300 hover:text-amber-100 hover:bg-zinc-800/60 px-1.5 py-0.5 rounded cursor-pointer truncate transition-colors flex items-center justify-between"
+                        className="text-[10px] text-[#f14c4c] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors flex items-center justify-between"
                       >
                         <span className="truncate">{df.name}</span>
-                        <span className="text-[9px] text-zinc-600">L{df.line}</span>
+                        <span className="text-[9px] text-[#858585]">L{df.line}</span>
                       </div>
                     ))}
                   </div>
@@ -436,32 +413,22 @@ export const ProjectSidebar: React.FC = () => {
 
               {/* Complexity Hotspots */}
               {diagnostics?.hotspots && diagnostics.hotspots.length > 0 && (
-                <div className="p-2.5 bg-[#161622] border border-white/5 rounded-xl">
-                  <div className="text-zinc-300 font-medium text-[11px] mb-1 flex items-center justify-between">
+                <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
+                  <div className="text-[#cccccc] font-medium text-[11px] mb-1 flex items-center justify-between">
                     <span>Complexity Hotspots</span>
-                    <span className="text-[10px] text-zinc-400">
+                    <span className="text-[10px] text-[#858585]">
                       Top {diagnostics.hotspots.length}
                     </span>
                   </div>
-                  <div className="space-y-1 mt-1.5 max-h-32 overflow-y-auto tree-scroll">
+                  <div className="space-y-0.5 mt-1 max-h-28 overflow-y-auto tree-scroll">
                     {diagnostics.hotspots.map((hs) => (
                       <div
                         key={hs.id}
                         onClick={() => selectNodeById(hs.id)}
-                        className="text-[10px] text-zinc-300 hover:text-white hover:bg-zinc-800/60 px-1.5 py-0.5 rounded cursor-pointer truncate transition-colors flex items-center justify-between"
+                        className="text-[10px] text-[#cca700] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors flex items-center justify-between"
                       >
                         <span className="truncate">{hs.name}</span>
-                        <span
-                          className={`text-[9px] px-1 rounded ${
-                            hs.rating === 'critical'
-                              ? 'text-rose-400 bg-rose-500/10'
-                              : hs.rating === 'high'
-                              ? 'text-orange-400 bg-orange-500/10'
-                              : 'text-amber-400 bg-amber-500/10'
-                          }`}
-                        >
-                          CC {hs.complexity}
-                        </span>
+                        <span className="text-[9px] text-[#f14c4c]">CC {hs.complexity}</span>
                       </div>
                     ))}
                   </div>
@@ -472,18 +439,18 @@ export const ProjectSidebar: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Summary Footer */}
-      <div className="p-3 border-t border-white/5 bg-[#12121a]/80">
-        <div className="grid grid-cols-2 gap-1.5 text-[10px] font-mono">
-          <div className="bg-[#181822] px-2 py-1 rounded-lg border border-white/5 flex justify-between items-center">
-            <span className="text-zinc-500">Functions</span>
-            <span className="text-zinc-200 font-semibold">{totalFunctions}</span>
-          </div>
-          <div className="bg-[#181822] px-2 py-1 rounded-lg border border-white/5 flex justify-between items-center">
-            <span className="text-zinc-500">Classes</span>
-            <span className="text-zinc-200 font-semibold">{totalClasses}</span>
-          </div>
+      {/* Footer Stats */}
+      <div className="h-7 px-3 border-t border-[#3e3e42] bg-[#2d2d2d] flex items-center justify-between text-[10px] font-mono text-[#858585]">
+        <div className="flex items-center space-x-2">
+          <span>
+            <strong className="text-[#dcdcaa]">{totalFunctions}</strong> fn
+          </span>
+          <span>•</span>
+          <span>
+            <strong className="text-[#4ec9b0]">{totalClasses}</strong> cls
+          </span>
         </div>
+        <span className="truncate max-w-[90px]">{nodes.length} total</span>
       </div>
     </aside>
   );

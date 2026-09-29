@@ -3,13 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PyArch Studio — Python Architecture &amp; Refactor Workbench</title>
+    <title>Architecture Explorer — Python Architecture &amp; Refactor Workbench</title>
 
-    <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans, JetBrains Mono -->
+    <!-- Google Fonts: JetBrains Mono for code -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
 
@@ -18,49 +18,28 @@
       href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
       rel="stylesheet"
     />
-
-    <!-- Tailwind CSS with custom theme config -->
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              midnight: {
-                950: '#070b12',
-                900: '#0a0f18',
-                850: '#0d1522',
-                800: '#111b2b',
-                750: '#152236',
-                700: '#1a2942',
-                600: '#243859',
-              },
-              electric: {
-                400: '#38bdf8',
-                300: '#7dd3fc',
-                500: '#0284c7',
-                glow: 'rgba(56, 189, 248, 0.25)',
-              },
-              mint: {
-                400: '#34d399',
-                500: '#10b981',
-                600: '#059669',
-                glow: 'rgba(52, 211, 153, 0.25)',
-              },
-            },
-            fontFamily: {
-              sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
-              mono: ['"JetBrains Mono"', 'monospace'],
-              display: ['"Space Grotesk"', 'sans-serif'],
-            },
-          },
-        },
-      };
-    </script>
   </head>
-  <body class="bg-midnight-950 text-slate-200 font-sans text-xs antialiased overflow-hidden h-screen w-screen flex flex-col select-none">
-    <div id="root" class="h-full w-full flex flex-col overflow-hidden"></div>
+  <body class="bg-[#1e1e1e] text-[#cccccc] text-xs antialiased overflow-hidden h-screen w-screen flex flex-col select-none">
+    <div id="root" class="h-full w-full flex flex-col overflow-hidden bg-[#1e1e1e]">
+      <!-- Instant VS Code Splash Screen (prevents any raw code or layout flashes) -->
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;width:100vw;background:#1e1e1e;color:#cccccc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#007acc" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+            <polyline points="2 17 12 22 22 17"></polyline>
+            <polyline points="2 12 12 17 22 12"></polyline>
+          </svg>
+          <span style="font-size:14px;font-weight:600;letter-spacing:0.3px;color:#ffffff;">Architecture Explorer</span>
+        </div>
+        <div style="font-size:11px;color:#858585;display:flex;align-items:center;gap:8px;">
+          <div style="width:12px;height:12px;border:2px solid #007acc;border-top-color:transparent;border-radius:50%;animation:vscSpin 0.7s linear infinite;"></div>
+          <span>Loading Python Architecture Workbench...</span>
+        </div>
+        <style>
+          @keyframes vscSpin { to { transform: rotate(360deg); } }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

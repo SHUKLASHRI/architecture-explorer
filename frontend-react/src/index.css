@@ -1,5 +1,57 @@
-/* PyArch Studio — Professional Developer Workspace Styles */
+@import "tailwindcss";
 
+/* ==========================================================================
+   PyArch Studio — Visual Studio Code Design System
+   Exact VS Code Dark+ & Modern Dark Color Tokens & Layout
+   ========================================================================== */
+
+:root {
+  --vscode-editor-bg: #1e1e1e;
+  --vscode-sidebar-bg: #252526;
+  --vscode-sidebar-header: #202020;
+  --vscode-titlebar-bg: #323233;
+  --vscode-statusbar-bg: #007acc;
+  --vscode-panel-bg: #1e1e1e;
+  --vscode-border: #3e3e42;
+  --vscode-border-subtle: #2d2d30;
+  --vscode-active-border: #007acc;
+  --vscode-focus-outline: #007fd4;
+  --vscode-fg: #cccccc;
+  --vscode-fg-muted: #858585;
+  --vscode-fg-bright: #ffffff;
+  --vscode-hover-bg: #2a2d2e;
+  --vscode-active-bg: #094771;
+  --vscode-selection: #264f78;
+  --vscode-badge-bg: #333333;
+  
+  /* VS Code Dark+ Syntax Highlighting Tokens */
+  --vscode-token-fn: #dcdcaa;
+  --vscode-token-class: #4ec9b0;
+  --vscode-token-keyword: #569cd6;
+  --vscode-token-string: #ce9178;
+  --vscode-token-number: #b5cea8;
+  --vscode-token-comment: #6a9955;
+  --vscode-token-variable: #9cdcfe;
+  --vscode-error: #f14c4c;
+  --vscode-warning: #cca700;
+  --vscode-info: #3794ff;
+}
+
+/* Base resets & typography */
+html, body {
+  background-color: var(--vscode-editor-bg);
+  color: var(--vscode-fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Material Symbols */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
   font-size: 16px;
@@ -7,60 +59,117 @@
   line-height: 1;
 }
 
-/* Subtle, smooth cable pulse animation */
-@keyframes flowRibbon {
-  0% { stroke-dashoffset: 24; }
-  100% { stroke-dashoffset: 0; }
-}
-
+/* Canvas edge connections */
 .flow-cable {
-  stroke-dasharray: 6 4;
-  animation: flowRibbon 1.6s linear infinite;
+  stroke-dasharray: 4 3;
+  animation: flowRibbon 1.5s linear infinite;
 }
 
 .cycle-cable {
-  stroke-dasharray: 5 4;
-  animation: flowRibbon 1.2s linear infinite reverse;
+  stroke-dasharray: 4 3;
+  animation: flowRibbon 1.0s linear infinite reverse;
 }
 
-/* Custom refined scrollbars */
-.code-scroll::-webkit-scrollbar,
-.tree-scroll::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+@keyframes flowRibbon {
+  0% { stroke-dashoffset: 14; }
+  100% { stroke-dashoffset: 0; }
 }
 
-.code-scroll::-webkit-scrollbar-track,
-.tree-scroll::-webkit-scrollbar-track {
+/* VS Code sleek scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.code-scroll::-webkit-scrollbar-thumb,
-.tree-scroll::-webkit-scrollbar-thumb {
-  background: #27272a;
-  border-radius: 9999px;
+::-webkit-scrollbar-thumb {
+  background: rgba(121, 121, 121, 0.4);
+  border-radius: 0px;
 }
 
-.code-scroll::-webkit-scrollbar-thumb:hover,
-.tree-scroll::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 100, 100, 0.7);
 }
 
-/* Splitter handle */
-.cursor-col-resize {
-  cursor: col-resize;
+::-webkit-scrollbar-thumb:active {
+  background: rgba(85, 85, 85, 0.9);
 }
 
-/* Prism syntax highlighting */
+.code-scroll::-webkit-scrollbar,
+.tree-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* Prism syntax highlighting — exact VS Code Dark+ theme */
+pre, code {
+  font-family: "JetBrains Mono", Consolas, "Courier New", monospace !important;
+}
+
 pre code {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
-.token.comment { color: #52525b; font-style: italic; }
-.token.punctuation { color: #71717a; }
-.token.property, .token.keyword { color: #60a5fa; font-weight: 500; }
-.token.string { color: #34d399; }
-.token.function { color: #93c5fd; }
-.token.number { color: #fb7185; }
-.token.operator { color: #38bdf8; }
+.token.comment,
+.token.block-comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--vscode-token-comment) !important;
+  font-style: italic;
+}
+
+.token.punctuation {
+  color: #cccccc !important;
+}
+
+.token.property,
+.token.tag,
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: var(--vscode-token-number) !important;
+}
+
+.token.selector,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted {
+  color: var(--vscode-token-string) !important;
+}
+
+.token.operator,
+.token.entity,
+.token.url {
+  color: #d4d4d4 !important;
+}
+
+.token.keyword {
+  color: var(--vscode-token-keyword) !important;
+  font-weight: 500;
+}
+
+.token.class-name,
+.token.class {
+  color: var(--vscode-token-class) !important;
+}
+
+.token.function {
+  color: var(--vscode-token-fn) !important;
+}
+
+.token.variable {
+  color: var(--vscode-token-variable) !important;
+}
+
+.token.regex,
+.token.important {
+  color: #d16969 !important;
+}

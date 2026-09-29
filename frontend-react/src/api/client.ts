@@ -8,12 +8,34 @@ import type {
   RenameApplyResponse,
 } from '../types';
 
-// In dev with Vite proxy, empty base or relative URL routes to Flask backend
+// In dev with Vite proxy or production served by Flask, relative URL routes to Flask backend
 const BASE_URL = '';
+
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 12000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw new Error(
+      err.message || 'Cannot connect to backend server. Ensure python app.py is running.'
+    );
+  }
+}
 
 export async function checkHealth(): Promise<boolean> {
   try {
-    const res = await fetch(`${BASE_URL}/health`);
+    const res = await fetchWithTimeout(`${BASE_URL}/health`, {}, 4000);
     const data = await res.json();
     return data.status === 'ok';
   } catch {
@@ -21,30 +43,39 @@ export async function checkHealth(): Promise<boolean> {
   }
 }
 
-export async function analyzeProject(projectPath: string): Promise<AnalyzeResponse> {
-  const res = await fetch(`${BASE_URL}/analyze`, {
+export async function analyzeProject(
+  projectPath: string,
+  forceRefresh = false
+): Promise<AnalyzeResponse> {
+  const res = await fetchWithTimeout(`${BASE_URL}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ project_path: projectPath }),
+    body: JSON.stringify({
+      project_path: projectPath,
+      refresh: forceRefresh,
+    }),
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    throw new Error(err.error || `HTTP ${res.status}: Failed to analyze project`);
   }
   return res.json();
 }
 
 export async function fetchSourceSnippet(file: string, line: number): Promise<SourceResponse> {
-  const res = await fetch(`${BASE_URL}/source?file=${encodeURIComponent(file)}&line=${line}`);
+  const res = await fetchWithTimeout(
+    `${BASE_URL}/source?file=${encodeURIComponent(file)}&line=${line}`
+  );
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    throw new Error(err.error || `HTTP ${res.status}: Could not load source snippet`);
   }
   return res.json();
 }
 
 export async function detectCircularDeps(projectPath: string): Promise<CircularDepsResponse> {
-  const res = await fetch(`${BASE_URL}/analyze/circular-deps`, {
+  const res = await fetchWithTimeout(`${BASE_URL}/analyze/circular-deps`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ project_path: projectPath }),
@@ -57,7 +88,7 @@ export async function detectCircularDeps(projectPath: string): Promise<CircularD
 }
 
 export async function detectDeadCode(projectPath: string): Promise<DeadCodeResponse> {
-  const res = await fetch(`${BASE_URL}/analyze/dead-code`, {
+  const res = await fetchWithTimeout(`${BASE_URL}/analyze/dead-code`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ project_path: projectPath }),
@@ -70,7 +101,7 @@ export async function detectDeadCode(projectPath: string): Promise<DeadCodeRespo
 }
 
 export async function analyzeImpact(nodeId: string): Promise<ImpactResponse> {
-  const res = await fetch(`${BASE_URL}/analyze/impact?node=${encodeURIComponent(nodeId)}`);
+  const res = await fetchWithTimeout(`${BASE_URL}/analyze/impact?node=${encodeURIComponent(nodeId)}`);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || `HTTP ${res.status}`);
@@ -83,7 +114,7 @@ export async function previewRename(
   nodeId: string,
   newName: string
 ): Promise<RenamePreviewResponse> {
-  const res = await fetch(`${BASE_URL}/refactor/rename/preview`, {
+  const res = await fetchWithTimeout(`${BASE_URL}/refactor/rename/preview`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -104,7 +135,7 @@ export async function applyRename(
   nodeId: string,
   newName: string
 ): Promise<RenameApplyResponse> {
-  const res = await fetch(`${BASE_URL}/refactor/rename/apply`, {
+  const res = await fetchWithTimeout(`${BASE_URL}/refactor/rename/apply`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
