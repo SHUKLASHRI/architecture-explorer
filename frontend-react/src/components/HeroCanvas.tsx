@@ -15,10 +15,11 @@ import {
   GripVertical,
   AlertCircle,
   FolderOpen,
+  LayoutGrid,
+  LayoutList,
+  FileText,
+  Filter,
 } from 'lucide-react';
-
-const CARD_WIDTH = 220;
-const CARD_HEIGHT = 74;
 
 /**
  * Robust adaptive cubic bezier calculation that anchors cables cleanly to
@@ -27,11 +28,10 @@ const CARD_HEIGHT = 74;
  */
 function computeEdgePath(
   sourcePos: { x: number; y: number },
-  targetPos: { x: number; y: number }
+  targetPos: { x: number; y: number },
+  w: number = 220,
+  h: number = 74
 ): string {
-  const w = CARD_WIDTH;
-  const h = CARD_HEIGHT;
-
   const srcCenter = { x: sourcePos.x + w / 2, y: sourcePos.y + h / 2 };
   const tgtCenter = { x: targetPos.x + w / 2, y: targetPos.y + h / 2 };
 
@@ -125,6 +125,12 @@ export const HeroCanvas: React.FC = () => {
     nodeCustomPositions,
     updateNodePosition,
     resetNodePositions,
+    hasCustomPositions,
+    askConfirmation,
+    cardDensity,
+    setCardDensity,
+    activeLayerFilter,
+    setActiveLayerFilter,
     minimizeAllPanels,
     isLoading,
     error,
@@ -181,6 +187,18 @@ export const HeroCanvas: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  const currentCardWidth = cardDensity === 'compact' ? 190 : cardDensity === 'detailed' ? 240 : 220;
+  const currentCardHeight = cardDensity === 'compact' ? 34 : cardDensity === 'detailed' ? 104 : 74;
+
+  // Extract distinct architectural layers in project
+  const availableLayers = useMemo(() => {
+    const set = new Set<string>();
+    nodes.forEach((n) => {
+      if (n.tier) set.add(n.tier.toUpperCase());
+    });
+    return Array.from(set);
+  }, [nodes]);
+
   // Compute adaptive base positions across 4 semantic tiers
   const baseNodePositions = useMemo(() => {
     const posMap = new Map<string, { x: number; y: number }>();
@@ -214,10 +232,10 @@ export const HeroCanvas: React.FC = () => {
     const yMargin = 90;
     const availableWidth = Math.max(containerSize.width - 2 * xMargin, 600);
     const colSpacing = colCount > 1 ? availableWidth / (colCount - 1) : 320;
+    const rowSpacing = cardDensity === 'compact' ? 52 : cardDensity === 'detailed' ? 144 : 110;
 
     tiers.forEach((tierGroup, colIdx) => {
       const x = xMargin + colIdx * Math.min(colSpacing, 340);
-      const rowSpacing = 110;
       tierGroup.forEach((node, rowIdx) => {
         const y = yMargin + rowIdx * rowSpacing;
         posMap.set(node.id, { x, y });
@@ -225,7 +243,7 @@ export const HeroCanvas: React.FC = () => {
     });
 
     return posMap;
-  }, [nodes, containerSize]);
+  }, [nodes, containerSize, cardDensity]);
 
   // Merge base positions with user-dragged local positions
   const effectivePositions = useMemo(() => {
@@ -252,9 +270,9 @@ export const HeroCanvas: React.FC = () => {
 
     effectivePositions.forEach((pos) => {
       minX = Math.min(minX, pos.x);
-      maxX = Math.max(maxX, pos.x + CARD_WIDTH);
+      maxX = Math.max(maxX, pos.x + currentCardWidth);
       minY = Math.min(minY, pos.y);
-      maxY = Math.max(maxY, pos.y + CARD_HEIGHT);
+      maxY = Math.max(maxY, pos.y + currentCardHeight);
     });
 
     if (minX === Infinity) return;
@@ -272,7 +290,26 @@ export const HeroCanvas: React.FC = () => {
       x: containerSize.width / 2 - centerX * fitScale,
       y: containerSize.height / 2 - centerY * fitScale,
     });
-  }, [nodes, effectivePositions, containerSize]);
+  }, [nodes, effectivePositions, containerSize, currentCardWidth, currentCardHeight]);
+
+  const handleResetLayout = useCallback(() => {
+    if (hasCustomPositions) {
+      askConfirmation({
+        title: 'Reset Canvas Layout?',
+        message:
+          'You have customized the positions of symbol nodes. Do you want to arrange all nodes back to their automatic tiered columns?',
+        confirmText: 'Reset Layout',
+        isDestructive: false,
+        onConfirm: () => {
+          resetNodePositions();
+          handleFitView();
+        },
+      });
+    } else {
+      resetNodePositions();
+      handleFitView();
+    }
+  }, [hasCustomPositions, askConfirmation, resetNodePositions, handleFitView]);
 
   // Auto-center on initial nodes load
   useEffect(() => {
@@ -504,6 +541,81 @@ export const HeroCanvas: React.FC = () => {
 
           <div className="h-4 w-[1px] bg-[#3e3e42]" />
 
+          {/* Architectural Layer Filter (Reduces Cognitive Load) */}
+          {availableLayers.length > 0 && (
+            <>
+              <div className="flex items-center gap-1 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
+                <Filter size={12} className="text-[#858585] ml-1 mr-0.5" />
+                <button
+                  onClick={() => setActiveLayerFilter('ALL')}
+                  className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono transition-colors ${
+                    activeLayerFilter === 'ALL'
+                      ? 'bg-[#094771] text-[#ffffff] font-semibold border border-[#007acc]'
+                      : 'text-[#858585] hover:text-[#cccccc]'
+                  }`}
+                  title="Show all architectural layers"
+                >
+                  All
+                </button>
+                {availableLayers.map((layer) => (
+                  <button
+                    key={layer}
+                    onClick={() => setActiveLayerFilter(layer)}
+                    className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono transition-colors uppercase ${
+                      activeLayerFilter === layer
+                        ? 'bg-[#094771] text-[#ffffff] font-semibold border border-[#007acc]'
+                        : 'text-[#858585] hover:text-[#cccccc]'
+                    }`}
+                    title={`Filter by ${layer} tier`}
+                  >
+                    {layer.slice(0, 4)}
+                  </button>
+                ))}
+              </div>
+
+              <div className="h-4 w-[1px] bg-[#3e3e42]" />
+            </>
+          )}
+
+          {/* Information Density Switcher (Simplification & Hierarchy) */}
+          <div className="flex items-center gap-0.5 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
+            <button
+              onClick={() => setCardDensity('compact')}
+              className={`p-1 rounded-[2px] text-[10px] transition-colors ${
+                cardDensity === 'compact'
+                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                  : 'text-[#858585] hover:text-[#cccccc]'
+              }`}
+              title="Compact View (Pill cards for minimum visual noise)"
+            >
+              <LayoutList size={12} />
+            </button>
+            <button
+              onClick={() => setCardDensity('standard')}
+              className={`p-1 rounded-[2px] text-[10px] transition-colors ${
+                cardDensity === 'standard'
+                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                  : 'text-[#858585] hover:text-[#cccccc]'
+              }`}
+              title="Standard View (Balanced metrics and identifiers)"
+            >
+              <LayoutGrid size={12} />
+            </button>
+            <button
+              onClick={() => setCardDensity('detailed')}
+              className={`p-1 rounded-[2px] text-[10px] transition-colors ${
+                cardDensity === 'detailed'
+                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                  : 'text-[#858585] hover:text-[#cccccc]'
+              }`}
+              title="Detailed View (Rich docstrings and parameter signatures)"
+            >
+              <FileText size={12} />
+            </button>
+          </div>
+
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
+
           {/* Depth Slider */}
           <div className="flex items-center gap-1 px-1 text-[11px] font-mono text-[#858585]">
             <span>Hops:</span>
@@ -526,14 +638,19 @@ export const HeroCanvas: React.FC = () => {
 
           <div className="h-4 w-[1px] bg-[#3e3e42]" />
 
-          {/* Reset / Reorganize Layout Button */}
+          {/* Reset / Reorganize Layout Button (With Safety Confirmation) */}
           <button
-            onClick={() => {
-              resetNodePositions();
-              handleFitView();
-            }}
-            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors text-[11px]"
-            title="Auto-organize / Reset Node Layout"
+            onClick={handleResetLayout}
+            className={`p-1 rounded-[2px] transition-colors text-[11px] ${
+              hasCustomPositions
+                ? 'text-[#4ec9b0] hover:bg-[#2a2d2e]'
+                : 'text-[#858585] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
+            }`}
+            title={
+              hasCustomPositions
+                ? 'Reset custom layout back to columns (Confirmation required)'
+                : 'Auto-organize Node Layout'
+            }
           >
             <RotateCcw size={14} />
           </button>
@@ -705,7 +822,7 @@ export const HeroCanvas: React.FC = () => {
             if (!sourcePos || !targetPos) return null;
 
             // Dynamically computed edge path anchored perfectly to card perimeters
-            const d = computeEdgePath(sourcePos, targetPos);
+            const d = computeEdgePath(sourcePos, targetPos, currentCardWidth, currentCardHeight);
 
             const isEdgeActive =
               selectedNode &&
@@ -759,6 +876,10 @@ export const HeroCanvas: React.FC = () => {
           const isClass = node.kind === 'class';
           const isDragging = activeDraggingId === node.id;
 
+          const isLayerDimmed =
+            activeLayerFilter !== 'ALL' &&
+            (node.tier || '').toUpperCase() !== activeLayerFilter.toUpperCase();
+
           let borderClass = 'border-[#3e3e42] hover:border-[#606060]';
           let bgClass = 'bg-[#252526]';
           let opacityClass = 'opacity-100';
@@ -779,79 +900,123 @@ export const HeroCanvas: React.FC = () => {
             opacityClass = 'opacity-35 hover:opacity-90';
           }
 
+          if (isLayerDimmed && !isSelected) {
+            opacityClass = 'opacity-20 hover:opacity-85';
+          }
+
           return (
             <div
               key={node.id}
               onMouseDown={(e) => handleNodeMouseDown(e, node)}
               style={{
                 transform: `translate(${pos.x}px, ${pos.y}px)`,
-                width: `${CARD_WIDTH}px`,
+                width: `${currentCardWidth}px`,
+                height: `${currentCardHeight}px`,
                 willChange: isDragging ? 'transform' : 'auto',
               }}
-              className={`absolute top-0 left-0 rounded-[3px] border p-2.5 cursor-grab active:cursor-grabbing transition-shadow duration-150 select-none shadow-md pointer-events-auto ${borderClass} ${bgClass} ${opacityClass}`}
+              className={`absolute top-0 left-0 rounded-[3px] border cursor-grab active:cursor-grabbing transition-all duration-150 select-none shadow-md pointer-events-auto flex flex-col justify-between overflow-hidden ${
+                cardDensity === 'compact' ? 'px-2 py-1.5' : 'p-2.5'
+              } ${borderClass} ${bgClass} ${opacityClass}`}
             >
-              {/* Header: Kind Badge, Tier & File */}
-              <div className="flex items-center justify-between mb-1.5 pointer-events-none gap-1">
-                <div className="flex items-center gap-1">
-                  <span
-                    className={`text-[9px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-semibold tracking-wider ${
-                      isClass
-                        ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
-                        : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
-                    }`}
-                  >
-                    {isClass ? 'class' : node.is_async ? 'async fn' : 'fn'}
-                  </span>
-                  {node.tier && (
-                    <span className="text-[8px] font-mono px-1 py-0.2 rounded-[2px] bg-[#1e1e1e] text-[#858585] uppercase border border-[#3e3e42]">
-                      {node.tier}
-                    </span>
-                  )}
-                </div>
-
-                <span className="text-[10px] font-mono text-[#858585] truncate max-w-[90px]">
-                  {node.filename}
-                </span>
-              </div>
-
-              {/* Symbol Name with VS Code syntax color */}
-              <div className="font-mono text-xs font-semibold truncate flex items-center justify-between pointer-events-none">
-                <div className="truncate">
-                  <span className={isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'}>
-                    {node.name}
-                  </span>
-                  <span className="text-[#858585] font-normal">()</span>
-                </div>
-                <GripVertical
-                  size={13}
-                  className="text-[#858585] opacity-0 group-hover:opacity-100 flex-shrink-0"
-                />
-              </div>
-
-              {/* Sub-meta: Lines, params, and Cyclomatic Complexity */}
-              <div className="mt-2 pt-1.5 border-t border-[#3e3e42] flex items-center justify-between text-[10px] font-mono text-[#858585] pointer-events-none">
-                <span>L{node.line}</span>
-                <div className="flex items-center gap-1.5">
-                  {node.cyclomatic_complexity !== undefined && node.cyclomatic_complexity !== null && (
+              {cardDensity === 'compact' ? (
+                /* COMPACT DENSITY: Ultra-minimal single-line pill card */
+                <div className="flex items-center justify-between pointer-events-none gap-1.5 w-full h-full">
+                  <div className="flex items-center gap-1.5 truncate">
                     <span
-                      className={`text-[9px] px-1 rounded-[2px] font-semibold ${
-                        node.complexity_rating === 'low'
-                          ? 'text-[#4ec9b0] bg-[#203330]'
-                          : node.complexity_rating === 'moderate'
-                          ? 'text-[#cca700] bg-[#333020]'
-                          : 'text-[#f14c4c] bg-[#332020]'
+                      className={`text-[8px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-bold tracking-wider ${
+                        isClass
+                          ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
+                          : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
                       }`}
                     >
-                      CC {node.cyclomatic_complexity}
+                      {isClass ? 'C' : 'fn'}
                     </span>
-                  )}
-                  {Array.isArray(node.parameters) && node.parameters.length > 0 && (
-                    <span className="text-[#858585]">
-                      {node.parameters.length}p
+                    <span
+                      className={`font-mono text-xs font-semibold truncate ${
+                        isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'
+                      }`}
+                    >
+                      {node.name}
                     </span>
-                  )}
+                  </div>
+                  <span className="text-[10px] font-mono text-[#858585] flex-shrink-0">
+                    L{node.line}
+                  </span>
                 </div>
-              </div>
+              ) : (
+                /* STANDARD & DETAILED DENSITY */
+                <>
+                  {/* Header: Kind Badge, Tier & File */}
+                  <div className="flex items-center justify-between mb-1 pointer-events-none gap-1">
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={`text-[9px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-semibold tracking-wider ${
+                          isClass
+                            ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
+                            : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
+                        }`}
+                      >
+                        {isClass ? 'class' : node.is_async ? 'async fn' : 'fn'}
+                      </span>
+                      {node.tier && (
+                        <span className="text-[8px] font-mono px-1 py-0.2 rounded-[2px] bg-[#1e1e1e] text-[#858585] uppercase border border-[#3e3e42]">
+                          {node.tier}
+                        </span>
+                      )}
+                    </div>
+
+                    <span className="text-[10px] font-mono text-[#858585] truncate max-w-[90px]">
+                      {node.filename}
+                    </span>
+                  </div>
+
+                  {/* Symbol Name with VS Code syntax color */}
+                  <div className="font-mono text-xs font-semibold truncate flex items-center justify-between pointer-events-none">
+                    <div className="truncate">
+                      <span className={isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'}>
+                        {node.name}
+                      </span>
+                      <span className="text-[#858585] font-normal">()</span>
+                    </div>
+                    <GripVertical
+                      size={13}
+                      className="text-[#858585] opacity-0 group-hover:opacity-100 flex-shrink-0"
+                    />
+                  </div>
+
+                  {/* Detailed Density: Docstring preview snippet */}
+                  {cardDensity === 'detailed' && node.docstring && (
+                    <div className="text-[10px] font-mono text-[#6a9955] italic truncate max-w-full my-0.5 opacity-90 pointer-events-none">
+                      "{node.docstring.split('\n')[0].slice(0, 38)}..."
+                    </div>
+                  )}
+
+                  {/* Sub-meta: Lines, params, and Cyclomatic Complexity */}
+                  <div className="mt-1 pt-1 border-t border-[#3e3e42] flex items-center justify-between text-[10px] font-mono text-[#858585] pointer-events-none">
+                    <span>L{node.line}</span>
+                    <div className="flex items-center gap-1.5">
+                      {node.cyclomatic_complexity !== undefined && node.cyclomatic_complexity !== null && (
+                        <span
+                          className={`text-[9px] px-1 rounded-[2px] font-semibold ${
+                            node.complexity_rating === 'low'
+                              ? 'text-[#4ec9b0] bg-[#203330]'
+                              : node.complexity_rating === 'moderate'
+                              ? 'text-[#cca700] bg-[#333020]'
+                              : 'text-[#f14c4c] bg-[#332020]'
+                          }`}
+                        >
+                          CC {node.cyclomatic_complexity}
+                        </span>
+                      )}
+                      {Array.isArray(node.parameters) && node.parameters.length > 0 && (
+                        <span className="text-[#858585]">
+                          {node.parameters.length}p
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           );
         })}

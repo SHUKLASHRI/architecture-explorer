@@ -13,6 +13,9 @@ import type {
   ProjectModule,
   ProjectDiagnostics,
   ProjectMeta,
+  CardDensity,
+  ConfirmDialogOptions,
+  ToastNotification,
 } from '../types';
 import * as api from '../api/client';
 
@@ -69,6 +72,24 @@ interface ExplorerContextType {
   openRenameModal: (node: GraphNode) => void;
   closeRenameModal: () => void;
   apiConnected: boolean;
+
+  // Visual Hierarchy & Cognitive Load controls
+  cardDensity: CardDensity;
+  setCardDensity: (d: CardDensity) => void;
+  activeLayerFilter: string;
+  setActiveLayerFilter: (l: string) => void;
+
+  // Confirmation dialogs
+  confirmDialog: ConfirmDialogOptions | null;
+  askConfirmation: (opts: ConfirmDialogOptions) => void;
+  closeConfirmation: () => void;
+
+  // Toast notification & Undo system
+  toasts: ToastNotification[];
+  showToast: (t: Omit<ToastNotification, 'id'>) => void;
+  dismissToast: (id: string) => void;
+  hasCustomPositions: boolean;
+  undoResetLayout: () => void;
 
   nodeCustomPositions: Record<string, { x: number; y: number }>;
   updateNodePosition: (id: string, pos: { x: number; y: number }) => void;
@@ -127,11 +148,41 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isSpotlightOpen, setIsSpotlightOpen] = useState<boolean>(false);
   const [renameModalNode, setRenameModalNode] = useState<GraphNode | null>(null);
   const [nodeCustomPositions, setNodeCustomPositions] = useState<Record<string, { x: number; y: number }>>({});
+  const [previousPositions, setPreviousPositions] = useState<Record<string, { x: number; y: number }> | null>(null);
   const [leftPanelOpen, setLeftPanelOpen] = useState<boolean>(true);
   const [leftPanelHovered, setLeftPanelHovered] = useState<boolean>(false);
   const [rightPanelOpen, setRightPanelOpen] = useState<boolean>(true);
   const [rightPanelHovered, setRightPanelHovered] = useState<boolean>(false);
   const [apiConnected, setApiConnected] = useState<boolean>(false);
+
+  // Visual Hierarchy & Cognitive Load controls
+  const [cardDensity, setCardDensity] = useState<CardDensity>('standard');
+  const [activeLayerFilter, setActiveLayerFilter] = useState<string>('ALL');
+
+  // Confirmation dialogs
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogOptions | null>(null);
+  const askConfirmation = useCallback((opts: ConfirmDialogOptions) => {
+    setConfirmDialog(opts);
+  }, []);
+  const closeConfirmation = useCallback(() => {
+    setConfirmDialog(null);
+  }, []);
+
+  // Toast Notification & Undo system
+  const [toasts, setToasts] = useState<ToastNotification[]>([]);
+  const showToast = useCallback((t: Omit<ToastNotification, 'id'>) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+    const newToast: ToastNotification = { id, ...t };
+    setToasts((prev) => [...prev.slice(-3), newToast]);
+    const duration = t.duration || 4500;
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((item) => item.id !== id));
+    }, duration);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((item) => item.id !== id));
+  }, []);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -315,9 +366,33 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }));
   }, []);
 
+  const hasCustomPositions = Object.keys(nodeCustomPositions).length > 0;
+
+  const undoResetLayout = useCallback(() => {
+    if (previousPositions) {
+      setNodeCustomPositions(previousPositions);
+      setPreviousPositions(null);
+      showToast({
+        type: 'success',
+        message: 'Restored previous canvas layout positions.',
+      });
+    }
+  }, [previousPositions, showToast]);
+
   const resetNodePositions = useCallback(() => {
+    if (Object.keys(nodeCustomPositions).length > 0) {
+      setPreviousPositions(nodeCustomPositions);
+    }
     setNodeCustomPositions({});
-  }, []);
+    showToast({
+      type: 'info',
+      message: 'Layout auto-arranged into semantic columns.',
+      actionLabel: 'Undo',
+      onAction: () => {
+        undoResetLayout();
+      },
+    });
+  }, [nodeCustomPositions, showToast, undoResetLayout]);
 
   const minimizeAllPanels = useCallback(() => {
     setLeftPanelOpen(false);
@@ -336,8 +411,12 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         loadProject();
       }
       setRenameModalNode(null);
+      showToast({
+        type: 'success',
+        message: 'Symbol successfully renamed across project files.',
+      });
     },
-    [loadProject]
+    [loadProject, showToast]
   );
 
   return (
@@ -395,6 +474,25 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         openRenameModal: setRenameModalNode,
         closeRenameModal: () => setRenameModalNode(null),
         apiConnected,
+
+        // Visual Hierarchy & Cognitive Load controls
+        cardDensity,
+        setCardDensity,
+        activeLayerFilter,
+        setActiveLayerFilter,
+
+        // Confirmation dialogs
+        confirmDialog,
+        askConfirmation,
+        closeConfirmation,
+
+        // Toast notification & Undo system
+        toasts,
+        showToast,
+        dismissToast,
+        hasCustomPositions,
+        undoResetLayout,
+
         nodeCustomPositions,
         updateNodePosition,
         resetNodePositions,

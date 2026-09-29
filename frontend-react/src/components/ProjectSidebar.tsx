@@ -28,6 +28,8 @@ export const ProjectSidebar: React.FC = () => {
     projectMeta,
     activeCycles,
     deadFunctions,
+    activeLayerFilter,
+    setActiveLayerFilter,
   } = useExplorer();
 
   const [treeFilter, setTreeFilter] = useState('');
@@ -312,25 +314,48 @@ export const ProjectSidebar: React.FC = () => {
           {sidebarTab === 'layers' && (
             <div className="p-1 space-y-2 font-mono text-[11px]">
               {layers && Object.keys(layers).length > 0 ? (
-                Object.entries(layers).map(([tierName, nodeIds]) => (
-                  <div key={tierName} className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
-                    <div className="text-[#cccccc] font-medium text-[11px] mb-1 flex items-center justify-between">
-                      <span className="uppercase tracking-wider text-[#569cd6]">{tierName}</span>
-                      <span className="text-[#858585] font-normal">{nodeIds.length} symbols</span>
-                    </div>
-                    <div className="space-y-0.5 max-h-28 overflow-y-auto tree-scroll">
-                      {nodeIds.map((nid) => (
-                        <div
-                          key={nid}
-                          onClick={() => selectNodeById(nid)}
-                          className="text-[10px] text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors"
-                        >
-                          • {nid}
+                Object.entries(layers).map(([tierName, nodeIds]) => {
+                  const isFiltered = activeLayerFilter.toUpperCase() === tierName.toUpperCase();
+                  return (
+                    <div
+                      key={tierName}
+                      className={`p-2 bg-[#1e1e1e] border rounded-[2px] transition-colors ${
+                        isFiltered
+                          ? 'border-[#007acc] ring-1 ring-[#007acc]/40'
+                          : 'border-[#3e3e42]'
+                      }`}
+                    >
+                      <div
+                        onClick={() =>
+                          setActiveLayerFilter(isFiltered ? 'ALL' : tierName.toUpperCase())
+                        }
+                        className="text-[#cccccc] font-medium text-[11px] mb-1 flex items-center justify-between cursor-pointer hover:text-white"
+                        title={isFiltered ? 'Click to show all layers' : `Click to isolate ${tierName} on canvas`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span className="uppercase tracking-wider text-[#569cd6]">{tierName}</span>
+                          {isFiltered && (
+                            <span className="text-[9px] px-1 bg-[#094771] text-[#ffffff] rounded-[2px]">
+                              ISOLATED
+                            </span>
+                          )}
                         </div>
-                      ))}
+                        <span className="text-[#858585] font-normal">{nodeIds.length} symbols</span>
+                      </div>
+                      <div className="space-y-0.5 max-h-28 overflow-y-auto tree-scroll">
+                        {nodeIds.map((nid) => (
+                          <div
+                            key={nid}
+                            onClick={() => selectNodeById(nid)}
+                            className="text-[10px] text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors"
+                          >
+                            • {nid}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="p-3 text-center text-[#858585] text-[11px]">
                   No architectural layers discovered yet.

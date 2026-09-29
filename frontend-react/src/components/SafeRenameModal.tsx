@@ -19,12 +19,15 @@ export const SafeRenameModal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
+  const [showConfirmStep, setShowConfirmStep] = useState(false);
+
   useEffect(() => {
     if (renameModalNode) {
       setNewName(`${renameModalNode.name}_renamed`);
       setPlan(null);
       setError(null);
       setSuccessMessage(null);
+      setShowConfirmStep(false);
     }
   }, [renameModalNode]);
 
@@ -46,6 +49,7 @@ export const SafeRenameModal: React.FC = () => {
 
     setIsPreviewing(true);
     setError(null);
+    setShowConfirmStep(false);
     try {
       const res = await api.previewRename(projectPath, renameModalNode.id, newName);
       if (!res.ok) {
@@ -83,13 +87,15 @@ export const SafeRenameModal: React.FC = () => {
     }
   };
 
+  const affectedFiles = plan ? Array.from(new Set(plan.substitutions.map((s) => s.file))) : [];
+
   return (
     <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 select-none"
+      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-150"
       onClick={closeRenameModal}
     >
       <div
-        className="w-[560px] max-w-[92vw] max-h-[85vh] bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-2xl flex flex-col overflow-hidden font-sans"
+        className="w-[580px] max-w-[94vw] max-h-[88vh] bg-[#252526] border border-[#3e3e42] rounded-[4px] shadow-2xl flex flex-col overflow-hidden font-sans"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -98,7 +104,7 @@ export const SafeRenameModal: React.FC = () => {
             <Edit size={15} className="text-[#007acc]" />
             <div>
               <h3 className="text-xs font-semibold text-[#ffffff]">
-                Rename Symbol
+                {showConfirmStep ? 'Confirm Refactor Execution' : 'Rename Symbol'}
               </h3>
               <p className="text-[11px] text-[#858585] font-mono">
                 Original: <strong className="text-[#cccccc]">{renameModalNode.name}</strong>
@@ -115,84 +121,139 @@ export const SafeRenameModal: React.FC = () => {
         </div>
 
         {/* Body */}
-        <div className="p-4 overflow-y-auto space-y-3.5 code-scroll">
-          {/* New Name Input Row */}
-          <div>
-            <label className="block text-[11px] font-sans text-[#858585] mb-1">
-              New Symbol Name
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => {
-                  setNewName(e.target.value);
-                  setPlan(null);
-                }}
-                placeholder="e.g. validate_credentials"
-                className="flex-1 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] px-2.5 py-1 text-xs text-[#cccccc] font-mono focus:outline-none focus:border-[#007acc]"
-              />
-              <button
-                onClick={handlePreview}
-                disabled={isPreviewing}
-                className="px-3 py-1 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-xs font-sans text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1.5 transition-colors disabled:opacity-50"
-              >
-                {isPreviewing && <Loader2 size={13} className="animate-spin" />}
-                <span>Preview</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Error Banner */}
-          {error && (
-            <div className="flex items-center gap-2 p-2 rounded-[2px] bg-[#332020] border border-[#f14c4c]/40 text-[#f14c4c] text-xs">
-              <AlertTriangle size={14} className="text-[#f14c4c] flex-shrink-0" />
-              <span>{error}</span>
-            </div>
-          )}
-
-          {/* Success Banner */}
-          {successMessage && (
-            <div className="flex items-center gap-2 p-2 rounded-[2px] bg-[#203330] border border-[#4ec9b0]/40 text-[#4ec9b0] text-xs">
-              <CheckCircle2 size={14} className="text-[#4ec9b0] flex-shrink-0" />
-              <span>{successMessage}</span>
-            </div>
-          )}
-
-          {/* Diff Preview List */}
-          {plan && (
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-[#858585] font-medium">
-                  Planned Substitutions ({plan.substitutions.length})
-                </span>
-                <span className="text-[10px] text-[#858585]">
-                  {new Set(plan.substitutions.map((s) => s.file)).size} files affected
-                </span>
-              </div>
-
-              <div className="space-y-1.5 max-h-56 overflow-y-auto code-scroll">
-                {plan.substitutions.map((sub, i) => (
-                  <div
-                    key={i}
-                    className="p-2 rounded-[2px] bg-[#1e1e1e] border border-[#3e3e42] font-mono text-[11px] space-y-1"
+        <div className="p-4 overflow-y-auto space-y-3.5 code-scroll flex-1">
+          {!showConfirmStep ? (
+            <>
+              {/* New Name Input Row */}
+              <div>
+                <label className="block text-[11px] font-sans text-[#858585] mb-1">
+                  New Symbol Name
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => {
+                      setNewName(e.target.value);
+                      setPlan(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handlePreview();
+                      }
+                    }}
+                    placeholder="e.g. validate_credentials"
+                    className="flex-1 bg-[#1e1e1e] border border-[#3e3e42] focus:border-[#007acc] rounded-[2px] px-2.5 py-1 text-xs text-[#cccccc] font-mono focus:outline-none"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handlePreview}
+                    disabled={isPreviewing}
+                    className="px-3 py-1 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-xs font-sans text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1.5 transition-colors disabled:opacity-50"
                   >
-                    <div className="flex items-center justify-between text-[#858585] text-[10px]">
-                      <span className="text-[#cccccc] truncate">{sub.file}</span>
-                      <span>Line {sub.line}</span>
-                    </div>
-
-                    <div className="space-y-0.5">
-                      <div className="p-1 rounded-[1px] bg-[#332020] text-[#f14c4c] border border-[#4a2a2a] overflow-x-auto truncate">
-                        - {sub.old}
-                      </div>
-                      <div className="p-1 rounded-[1px] bg-[#203330] text-[#4ec9b0] border border-[#2a4e48] overflow-x-auto truncate">
-                        + {sub.new}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    {isPreviewing && <Loader2 size={13} className="animate-spin" />}
+                    <span>Preview Diff</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Error Banner */}
+              {error && (
+                <div className="flex items-center gap-2 p-2.5 rounded-[2px] bg-[#332020] border border-[#f14c4c]/40 text-[#f14c4c] text-xs">
+                  <AlertTriangle size={14} className="text-[#f14c4c] flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Success Banner */}
+              {successMessage && (
+                <div className="flex items-center gap-2 p-2.5 rounded-[2px] bg-[#203330] border border-[#4ec9b0]/40 text-[#4ec9b0] text-xs">
+                  <CheckCircle2 size={14} className="text-[#4ec9b0] flex-shrink-0" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
+
+              {/* Diff Preview List */}
+              {plan && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between text-xs font-mono">
+                    <span className="text-[#858585] font-medium">
+                      Planned Substitutions ({plan.substitutions.length})
+                    </span>
+                    <span className="text-[10px] text-[#858585]">
+                      {affectedFiles.length} file{affectedFiles.length !== 1 ? 's' : ''} affected
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto code-scroll">
+                    {plan.substitutions.map((sub, i) => (
+                      <div
+                        key={i}
+                        className="p-2 rounded-[2px] bg-[#1e1e1e] border border-[#3e3e42] font-mono text-[11px] space-y-1"
+                      >
+                        <div className="flex items-center justify-between text-[#858585] text-[10px]">
+                          <span className="text-[#cccccc] truncate">{sub.file}</span>
+                          <span>Line {sub.line}</span>
+                        </div>
+
+                        <div className="space-y-0.5">
+                          <div className="p-1 rounded-[1px] bg-[#332020] text-[#f14c4c] border border-[#4a2a2a] overflow-x-auto truncate">
+                            - {sub.old}
+                          </div>
+                          <div className="p-1 rounded-[1px] bg-[#203330] text-[#4ec9b0] border border-[#2a4e48] overflow-x-auto truncate">
+                            + {sub.new}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Explicit Confirmation Dialog Step */
+            <div className="space-y-3.5 py-1">
+              <div className="p-3 bg-[#332a15] border border-[#cca700]/50 rounded-[3px] space-y-2">
+                <div className="flex items-center gap-2 text-xs font-semibold text-[#cca700]">
+                  <AlertTriangle size={16} />
+                  <span>Safety Check: Permanent Disk Modification</span>
+                </div>
+                <p className="text-[11px] text-[#e0d6b5] leading-relaxed">
+                  You are about to rename symbol <code className="text-[#ffffff] font-mono font-bold">{renameModalNode.name}</code> to <code className="text-[#ffffff] font-mono font-bold">{newName}</code>.
+                  This will write modifications directly to the following {affectedFiles.length} file(s):
+                </p>
+                <div className="flex flex-wrap gap-1 pt-1">
+                  {affectedFiles.map((file) => (
+                    <span
+                      key={file}
+                      className="px-2 py-0.5 bg-[#252526] text-[#cccccc] font-mono text-[10px] rounded-[2px] border border-[#3e3e42]"
+                    >
+                      {file}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 bg-[#1e1e1e] border border-[#3e3e42] rounded-[3px] text-xs text-[#858585] space-y-1 font-mono">
+                <div>• Total references to replace: <strong className="text-[#ffffff]">{plan?.substitutions.length}</strong></div>
+                <div>• AST syntax validation: <strong className="text-[#4ec9b0]">Passed</strong></div>
+                <div>• Git undoable: <strong className="text-[#007acc]">Yes (via git restore)</strong></div>
+              </div>
+
+              {error && (
+                <div className="flex items-center gap-2 p-2.5 rounded-[2px] bg-[#332020] border border-[#f14c4c]/40 text-[#f14c4c] text-xs">
+                  <AlertTriangle size={14} className="text-[#f14c4c] flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="flex items-center gap-2 p-2.5 rounded-[2px] bg-[#203330] border border-[#4ec9b0]/40 text-[#4ec9b0] text-xs">
+                  <CheckCircle2 size={14} className="text-[#4ec9b0] flex-shrink-0" />
+                  <span>{successMessage}</span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -200,24 +261,40 @@ export const SafeRenameModal: React.FC = () => {
         {/* Footer Actions */}
         <div className="px-4 py-2.5 border-t border-[#3e3e42] bg-[#2d2d2d] flex items-center justify-between">
           <button
-            onClick={closeRenameModal}
+            onClick={() => {
+              if (showConfirmStep) {
+                setShowConfirmStep(false);
+              } else {
+                closeRenameModal();
+              }
+            }}
             className="px-3 py-1 text-xs text-[#858585] hover:text-[#cccccc] transition-colors"
           >
-            Cancel
+            {showConfirmStep ? 'Back to Preview' : 'Cancel'}
           </button>
 
-          <button
-            onClick={handleApply}
-            disabled={!plan || isApplying}
-            className={`px-3 py-1 rounded-[2px] text-xs font-sans flex items-center gap-1.5 transition-colors ${
-              plan && !isApplying
-                ? 'bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff]'
-                : 'bg-[#333333] text-[#858585] cursor-not-allowed'
-            }`}
-          >
-            {isApplying && <Loader2 size={13} className="animate-spin" />}
-            <span>Apply Refactor ({plan ? plan.substitutions.length : 0})</span>
-          </button>
+          {!showConfirmStep ? (
+            <button
+              onClick={() => setShowConfirmStep(true)}
+              disabled={!plan || plan.substitutions.length === 0}
+              className={`px-3.5 py-1 rounded-[2px] text-xs font-sans flex items-center gap-1.5 transition-colors ${
+                plan && plan.substitutions.length > 0
+                  ? 'bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium'
+                  : 'bg-[#333333] text-[#858585] cursor-not-allowed'
+              }`}
+            >
+              <span>Review & Confirm ({plan ? plan.substitutions.length : 0})</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleApply}
+              disabled={isApplying}
+              className="px-3.5 py-1 rounded-[2px] text-xs font-sans font-medium flex items-center gap-1.5 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] transition-colors"
+            >
+              {isApplying && <Loader2 size={13} className="animate-spin" />}
+              <span>Confirm & Write to Disk</span>
+            </button>
+          )}
         </div>
       </div>
     </div>

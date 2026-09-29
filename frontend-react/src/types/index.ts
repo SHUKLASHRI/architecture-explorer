@@ -201,3 +201,24 @@ export interface RenameApplyResponse {
 export type AnalysisMode = 'default' | 'impact' | 'cycles' | 'deadcode';
 export type LayoutAlgorithm = 'Sugiyama' | 'Force-Directed';
 export type SidebarTab = 'files' | 'symbols' | 'layers' | 'metrics';
+export type CardDensity = 'compact' | 'standard' | 'detailed';
+
+export interface ConfirmDialogOptions {
+  title: string;
+  message: string;
+  detail?: string;
+  confirmText?: string;
+  cancelText?: string;
+  isDestructive?: boolean;
+  onConfirm: () => void;
+  onCancel?: () => void;
+}
+
+export interface ToastNotification {
+  id: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  duration?: number;
+}
