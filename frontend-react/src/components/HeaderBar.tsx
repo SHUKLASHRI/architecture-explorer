@@ -88,7 +88,7 @@ export const HeaderBar: React.FC = () => {
       <div className="flex items-center space-x-2">
         <button
           onClick={() => setLeftPanelOpen((prev) => !prev)}
-          className={`p-1.5 rounded-[3px] transition-colors flex items-center justify-center ${
+          className={`p-1.5 rounded-[3px] micro-tap flex items-center justify-center ${
             leftPanelOpen
               ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
               : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838]'
@@ -150,7 +150,7 @@ export const HeaderBar: React.FC = () => {
               setTempPath(projectPath);
               setEditingPath(true);
             }}
-            className="flex items-center space-x-1.5 px-2 py-0.5 rounded-[3px] hover:bg-[#383838] text-[11px] font-mono text-[#cccccc] hover:text-[#ffffff] transition-colors border border-transparent hover:border-[#3e3e42]"
+            className="flex items-center space-x-1.5 px-2 py-0.5 rounded-[3px] hover:bg-[#383838] text-[11px] font-mono text-[#cccccc] hover:text-[#ffffff] micro-tap border border-transparent hover:border-[#3e3e42]"
             title="Open Python Repository / Change Folder"
           >
             <FolderOpen size={14} className="text-[#858585]" />
@@ -164,7 +164,7 @@ export const HeaderBar: React.FC = () => {
       <div className="flex items-center justify-center flex-1 max-w-md mx-3">
         <button
           onClick={openSpotlight}
-          className="w-full flex items-center justify-between px-3 py-1 bg-[#1e1e1e] hover:bg-[#252526] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] text-[#858585] hover:text-[#cccccc] text-xs transition-colors group"
+          className="w-full flex items-center justify-between px-3 py-1 bg-[#1e1e1e] hover:bg-[#252526] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] text-[#858585] hover:text-[#cccccc] text-xs micro-tap group"
           title="Search symbols, functions & classes (Ctrl+K)"
         >
           <div className="flex items-center space-x-2 truncate">
@@ -206,7 +206,7 @@ export const HeaderBar: React.FC = () => {
         {/* Refresh button with force refresh */}
         <button
           onClick={() => loadProject(projectPath, true)}
-          className="p-1.5 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838] rounded-[3px] transition-colors flex items-center justify-center"
+          className="p-1.5 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838] rounded-[3px] micro-tap flex items-center justify-center"
           title="Force Re-analyze Project AST (Clears Cache)"
         >
           <RefreshCw size={14} />
@@ -216,7 +216,7 @@ export const HeaderBar: React.FC = () => {
         <div className="relative" ref={exportRef}>
           <button
             onClick={() => setExportOpen((p) => !p)}
-            className="px-2 py-0.5 bg-[#333333] hover:bg-[#3e3e42] text-[#cccccc] hover:text-[#ffffff] border border-[#3e3e42] rounded-[3px] text-[11px] font-sans flex items-center gap-1 transition-colors"
+            className="px-2 py-0.5 bg-[#333333] hover:bg-[#3e3e42] text-[#cccccc] hover:text-[#ffffff] border border-[#3e3e42] rounded-[3px] text-[11px] font-sans flex items-center gap-1 micro-tap"
           >
             <span>Export</span>
             <ChevronDown size={13} />
@@ -226,21 +226,21 @@ export const HeaderBar: React.FC = () => {
             <div className="absolute right-0 mt-1 w-44 bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-xl py-1 z-50 font-sans text-xs overflow-hidden">
               <button
                 onClick={() => handleExport('json')}
-                className="w-full text-left px-3 py-1.5 hover:bg-[#094771] text-[#cccccc] hover:text-[#ffffff] flex items-center justify-between"
+                className="w-full text-left px-3 py-1.5 hover:bg-[#094771] text-[#cccccc] hover:text-[#ffffff] flex items-center justify-between micro-tap"
               >
                 <span>JSON Graph</span>
                 <span className="text-[10px] font-mono text-[#858585]">.json</span>
               </button>
               <button
                 onClick={() => handleExport('mmd')}
-                className="w-full text-left px-3 py-1.5 hover:bg-[#094771] text-[#cccccc] hover:text-[#ffffff] flex items-center justify-between"
+                className="w-full text-left px-3 py-1.5 hover:bg-[#094771] text-[#cccccc] hover:text-[#ffffff] flex items-center justify-between micro-tap"
               >
                 <span>Mermaid Diagram</span>
                 <span className="text-[10px] font-mono text-[#858585]">.mmd</span>
               </button>
               <button
                 onClick={() => handleExport('svg')}
-                className="w-full text-left px-3 py-1.5 hover:bg-[#094771] text-[#cccccc] hover:text-[#ffffff] flex items-center justify-between border-t border-[#3e3e42] mt-1 pt-1.5"
+                className="w-full text-left px-3 py-1.5 hover:bg-[#094771] text-[#cccccc] hover:text-[#ffffff] flex items-center justify-between border-t border-[#3e3e42] mt-1 pt-1.5 micro-tap"
               >
                 <span>Print / Vector</span>
                 <span className="text-[10px] font-mono text-[#858585]">Print</span>
@@ -252,7 +252,7 @@ export const HeaderBar: React.FC = () => {
         {/* Inspector Panel Toggle */}
         <button
           onClick={() => setRightPanelOpen((prev) => !prev)}
-          className={`p-1.5 rounded-[3px] transition-colors flex items-center justify-center ${
+          className={`p-1.5 rounded-[3px] micro-tap flex items-center justify-center ${
             rightPanelOpen
               ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
               : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#383838]'

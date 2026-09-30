@@ -136,8 +136,7 @@ interface NodeCardProps {
   isConnected: boolean;
   isDead: boolean;
   isDragging: boolean;
-  isLayerDimmed: boolean;
-  isDimmedOther: boolean;
+  isLayerActive: boolean;
   cardDensity: 'compact' | 'standard' | 'detailed';
   currentCardWidth: number;
   currentCardHeight: number;
@@ -151,8 +150,7 @@ const NodeCard = React.memo<NodeCardProps>(({
   isConnected,
   isDead,
   isDragging,
-  isLayerDimmed,
-  isDimmedOther,
+  isLayerActive,
   cardDensity,
   currentCardWidth,
   currentCardHeight,
@@ -160,28 +158,33 @@ const NodeCard = React.memo<NodeCardProps>(({
 }) => {
   const isClass = node.kind === 'class';
 
-  let borderClass = 'border-[#3e3e42] hover:border-[#606060]';
+  let borderClass = 'border-[#3e3e42] hover:border-[#686868]';
   let bgClass = 'bg-[#252526]';
-  let opacityClass = 'opacity-100';
+  let glowClass = '';
+  let zIndexClass = 'z-10';
 
   if (isDragging) {
-    borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-2xl';
-    bgClass = 'bg-[#2d2d30]';
+    borderClass = 'border-[#007acc] ring-2 ring-[#007acc] shadow-2xl';
+    bgClass = 'bg-[#203246]';
+    zIndexClass = 'z-40';
   } else if (isSelected) {
-    borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-lg';
-    bgClass = 'bg-[#2d2d30]';
+    // Crisp, unmistakable active selection without washing out or dimming surrounding nodes
+    borderClass = 'border-[#007acc] ring-2 ring-[#007acc] shadow-xl';
+    bgClass = 'bg-[#203246]';
+    glowClass = 'node-selected-glow';
+    zIndexClass = 'z-30';
   } else if (isConnected) {
-    borderClass = 'border-[#007acc]/70';
-    bgClass = 'bg-[#252528]';
+    borderClass = 'border-[#007acc]/75 shadow-md';
+    bgClass = 'bg-[#222a33]';
+    glowClass = 'node-connected-glow';
+    zIndexClass = 'z-20';
   } else if (isDead) {
     borderClass = 'border-[#f14c4c]';
     bgClass = 'bg-[#2b2020]';
-  } else if (isDimmedOther) {
-    opacityClass = 'opacity-35 hover:opacity-90';
   }
 
-  if (isLayerDimmed && !isSelected) {
-    opacityClass = 'opacity-20 hover:opacity-85';
+  if (isLayerActive && !isSelected && !isConnected) {
+    borderClass = 'border-[#007acc]/50 hover:border-[#007acc]';
   }
 
   return (
@@ -193,11 +196,13 @@ const NodeCard = React.memo<NodeCardProps>(({
         height: `${currentCardHeight}px`,
         willChange: isDragging ? 'transform' : 'auto',
       }}
-      className={`absolute top-0 left-0 rounded-[3px] border cursor-grab active:cursor-grabbing select-none shadow-md pointer-events-auto flex flex-col justify-between overflow-hidden ${
+      className={`absolute top-0 left-0 rounded-[3px] border cursor-grab active:cursor-grabbing select-none shadow-md pointer-events-auto flex flex-col justify-between overflow-hidden opacity-100 ${
         isDragging
-          ? 'transition-none z-20'
-          : 'transition-colors duration-150 transition-opacity z-10'
-      } ${cardDensity === 'compact' ? 'px-2 py-1.5' : 'p-2.5'} ${borderClass} ${bgClass} ${opacityClass}`}
+          ? 'transition-none'
+          : 'transition-colors duration-150'
+      } ${zIndexClass} ${glowClass} ${
+        cardDensity === 'compact' ? 'px-2 py-1.5' : 'p-2.5'
+      } ${borderClass} ${bgClass}`}
     >
       {cardDensity === 'compact' ? (
         <div className="flex items-center justify-between pointer-events-none gap-1.5 w-full h-full">
@@ -686,23 +691,13 @@ export const HeroCanvas: React.FC = () => {
         }}
       />
 
-      {/* TOP FLOATING OPTIONS HUD */}
+      {/* TOP FLOATING OPTIONS HUD: Content, Modes & Filters */}
       <div
-        className={`absolute top-14 left-1/2 -translate-x-1/2 z-30 transition-all duration-200 pointer-events-auto ${
-          isDimmed ? 'opacity-25 hover:opacity-100 scale-95' : 'opacity-100 scale-100'
-        }`}
+        className={`absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto ${
+          isDimmed ? 'opacity-30 hover:opacity-100 scale-95' : 'opacity-100 scale-100'
+        } transition-all duration-150`}
       >
-        <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2.5 py-1 shadow-lg flex items-center gap-2">
-          {/* Target Focus Chip */}
-          <div className="flex items-center space-x-1.5 px-2 py-0.5 bg-[#1e1e1e] rounded-[2px] border border-[#3e3e42] text-[11px] font-mono">
-            <span className="text-[#858585]">Focus:</span>
-            <span className="font-medium text-[#dcdcaa] truncate max-w-[130px]">
-              {selectedNode ? selectedNode.name : 'All Symbols'}
-            </span>
-          </div>
-
-          <div className="h-4 w-[1px] bg-[#3e3e42]" />
-
+        <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2 py-1 shadow-lg flex items-center gap-2">
           {/* Mode Switcher Tabs */}
           <div className="flex items-center gap-1 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
             {(
@@ -718,7 +713,7 @@ export const HeroCanvas: React.FC = () => {
                 <button
                   key={id}
                   onClick={() => setAnalysisMode(id as AnalysisMode)}
-                  className={`px-2 py-0.5 rounded-[2px] text-[11px] font-sans flex items-center gap-1.5 transition-colors ${
+                  className={`px-2 py-0.5 rounded-[2px] text-[11px] font-sans flex items-center gap-1.5 micro-tap ${
                     active
                       ? 'bg-[#094771] text-[#ffffff] font-medium border border-[#007acc]'
                       : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
@@ -732,16 +727,41 @@ export const HeroCanvas: React.FC = () => {
             })}
           </div>
 
-          <div className="h-4 w-[1px] bg-[#3e3e42]" />
+          {/* Contextual Depth Slider: ONLY shown in Impact mode to eliminate clutter */}
+          {analysisMode === 'impact' && (
+            <>
+              <div className="h-4 w-[1px] bg-[#3e3e42]" />
+              <div className="flex items-center gap-1 px-1 text-[11px] font-mono text-[#858585]">
+                <span>Hops:</span>
+                <div className="flex gap-0.5">
+                  {[1, 2, 3, 4].map((d) => (
+                    <button
+                      key={d}
+                      onClick={() => setDepthHops(d)}
+                      className={`w-4 h-4 rounded-[2px] text-[10px] flex items-center justify-center font-bold micro-tap ${
+                        depthHops === d
+                          ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                          : 'text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
+                      }`}
+                      title={`Trace dependencies up to ${d} hops`}
+                    >
+                      {d}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
 
-          {/* Architectural Layer Filter (Reduces Cognitive Load) */}
+          {/* Architectural Layer Filter */}
           {availableLayers.length > 0 && (
             <>
+              <div className="h-4 w-[1px] bg-[#3e3e42]" />
               <div className="flex items-center gap-1 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
                 <Filter size={12} className="text-[#858585] ml-1 mr-0.5" />
                 <button
                   onClick={() => setActiveLayerFilter('ALL')}
-                  className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono transition-colors ${
+                  className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono micro-tap ${
                     activeLayerFilter === 'ALL'
                       ? 'bg-[#094771] text-[#ffffff] font-semibold border border-[#007acc]'
                       : 'text-[#858585] hover:text-[#cccccc]'
@@ -754,38 +774,38 @@ export const HeroCanvas: React.FC = () => {
                   <button
                     key={layer}
                     onClick={() => setActiveLayerFilter(layer)}
-                    className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono transition-colors uppercase ${
+                    className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono uppercase micro-tap ${
                       activeLayerFilter === layer
                         ? 'bg-[#094771] text-[#ffffff] font-semibold border border-[#007acc]'
                         : 'text-[#858585] hover:text-[#cccccc]'
                     }`}
-                    title={`Filter by ${layer} tier`}
+                    title={`Highlight ${layer} tier`}
                   >
                     {layer.slice(0, 4)}
                   </button>
                 ))}
               </div>
-
-              <div className="h-4 w-[1px] bg-[#3e3e42]" />
             </>
           )}
 
-          {/* Information Density Switcher (Simplification & Hierarchy) */}
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
+
+          {/* Information Density Switcher */}
           <div className="flex items-center gap-0.5 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
             <button
               onClick={() => setCardDensity('compact')}
-              className={`p-1 rounded-[2px] text-[10px] transition-colors ${
+              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
                 cardDensity === 'compact'
                   ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
                   : 'text-[#858585] hover:text-[#cccccc]'
               }`}
-              title="Compact View (Pill cards for minimum visual noise)"
+              title="Compact View (Pill cards for high-level structure)"
             >
               <LayoutList size={12} />
             </button>
             <button
               onClick={() => setCardDensity('standard')}
-              className={`p-1 rounded-[2px] text-[10px] transition-colors ${
+              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
                 cardDensity === 'standard'
                   ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
                   : 'text-[#858585] hover:text-[#cccccc]'
@@ -796,7 +816,7 @@ export const HeroCanvas: React.FC = () => {
             </button>
             <button
               onClick={() => setCardDensity('detailed')}
-              className={`p-1 rounded-[2px] text-[10px] transition-colors ${
+              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
                 cardDensity === 'detailed'
                   ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
                   : 'text-[#858585] hover:text-[#cccccc]'
@@ -806,114 +826,97 @@ export const HeroCanvas: React.FC = () => {
               <FileText size={12} />
             </button>
           </div>
-
-          <div className="h-4 w-[1px] bg-[#3e3e42]" />
-
-          {/* Depth Slider */}
-          <div className="flex items-center gap-1 px-1 text-[11px] font-mono text-[#858585]">
-            <span>Hops:</span>
-            <div className="flex gap-0.5">
-              {[1, 2, 3, 4].map((d) => (
-                <button
-                  key={d}
-                  onClick={() => setDepthHops(d)}
-                  className={`w-4 h-4 rounded-[2px] text-[10px] flex items-center justify-center font-bold transition-colors ${
-                    depthHops === d
-                      ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
-                      : 'text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
-                  }`}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="h-4 w-[1px] bg-[#3e3e42]" />
-
-          {/* Reset / Reorganize Layout Button (With Safety Confirmation) */}
-          <button
-            onClick={handleResetLayout}
-            className={`p-1 rounded-[2px] transition-colors text-[11px] ${
-              hasCustomPositions
-                ? 'text-[#4ec9b0] hover:bg-[#2a2d2e]'
-                : 'text-[#858585] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
-            }`}
-            title={
-              hasCustomPositions
-                ? 'Reset custom layout back to columns (Confirmation required)'
-                : 'Auto-organize Node Layout'
-            }
-          >
-            <RotateCcw size={14} />
-          </button>
-
-          {/* Focus / Zen Mode Button */}
-          <button
-            onClick={toggleFocusMode}
-            className={`p-1 rounded-[2px] text-[11px] flex items-center transition-colors ${
-              focusMode
-                ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
-                : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
-            }`}
-            title={focusMode ? 'Exit Zen Mode' : 'Enter Zen Mode'}
-          >
-            {focusMode ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
         </div>
       </div>
 
-      {/* BOTTOM FLOATING CANVAS TOOLBAR */}
+      {/* BOTTOM FLOATING CANVAS TOOLBAR: Consolidated Viewport, Layout & Camera Controls */}
       <div
-        className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-30 transition-all duration-200 pointer-events-auto ${
-          isDimmed ? 'opacity-25 hover:opacity-100' : 'opacity-100'
-        }`}
+        className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-auto ${
+          isDimmed ? 'opacity-30 hover:opacity-100' : 'opacity-100'
+        } transition-all duration-150`}
       >
-        <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2 py-1 shadow-lg flex items-center gap-1">
+        <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2 py-1 shadow-lg flex items-center gap-1.5">
+          {/* Zoom Out */}
           <button
             onClick={() => adjustZoom(-0.1)}
-            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
-            title="Zoom Out"
+            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] micro-tap"
+            title="Zoom Out (Ctrl+Minus)"
           >
             <ZoomOut size={14} />
           </button>
 
+          {/* Zoom Reset */}
           <span
             onClick={resetZoom}
-            className="font-mono text-[11px] text-[#cccccc] hover:text-[#ffffff] px-1 cursor-pointer select-none"
+            className="font-mono text-[11px] text-[#cccccc] hover:text-[#ffffff] px-1 cursor-pointer select-none micro-tap"
             title="Reset Zoom to 100%"
           >
             {Math.round(zoom * 100)}%
           </span>
 
+          {/* Zoom In */}
           <button
             onClick={() => adjustZoom(0.1)}
-            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
-            title="Zoom In"
+            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] micro-tap"
+            title="Zoom In (Ctrl+Plus)"
           >
             <ZoomIn size={14} />
           </button>
 
-          <div className="h-4 w-[1px] bg-[#3e3e42] mx-0.5" />
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
 
+          {/* Fit Graph to Screen */}
           <button
             onClick={handleFitView}
-            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] transition-colors"
+            className="p-1 text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] rounded-[2px] micro-tap"
             title="Fit Graph to Screen"
           >
             <Maximize2 size={14} />
           </button>
 
+          {/* Auto-Arrange / Reset Layout */}
+          <button
+            onClick={handleResetLayout}
+            className={`p-1 rounded-[2px] micro-tap text-[11px] ${
+              hasCustomPositions
+                ? 'text-[#4ec9b0] hover:bg-[#2a2d2e]'
+                : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
+            }`}
+            title={
+              hasCustomPositions
+                ? 'Re-organize custom layout into columns (Undoable)'
+                : 'Auto-arrange node positions'
+            }
+          >
+            <RotateCcw size={14} />
+          </button>
+
+          {/* Pan Tool */}
           <button
             onClick={togglePan}
-            className={`p-1 rounded-[2px] transition-colors ${
+            className={`p-1 rounded-[2px] micro-tap ${
               panActive
                 ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
                 : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
             }`}
-            title="Toggle Pan Hand Tool"
+            title="Toggle Pan Tool"
           >
             <Hand size={14} />
+          </button>
+
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
+
+          {/* Zen View Mode */}
+          <button
+            onClick={toggleFocusMode}
+            className={`p-1 rounded-[2px] text-[11px] flex items-center micro-tap ${
+              focusMode
+                ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
+            }`}
+            title={focusMode ? 'Exit Zen Mode' : 'Enter Zen Mode (Hide Panels)'}
+          >
+            {focusMode ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         </div>
       </div>
@@ -1049,11 +1052,9 @@ export const HeroCanvas: React.FC = () => {
           const isDead = analysisMode === 'deadcode' && deadNodeIds.has(node.id);
           const isDragging = activeDraggingId === node.id;
 
-          const isLayerDimmed =
+          const isLayerActive =
             activeLayerFilter !== 'ALL' &&
-            (node.tier || '').toUpperCase() !== activeLayerFilter.toUpperCase();
-
-          const isDimmedOther = Boolean(selectedNode && !isConnected);
+            (node.tier || '').toUpperCase() === activeLayerFilter.toUpperCase();
 
           return (
             <NodeCard
@@ -1064,8 +1065,7 @@ export const HeroCanvas: React.FC = () => {
               isConnected={isConnected}
               isDead={isDead}
               isDragging={isDragging}
-              isLayerDimmed={isLayerDimmed}
-              isDimmedOther={isDimmedOther}
+              isLayerActive={isLayerActive}
               cardDensity={cardDensity}
               currentCardWidth={currentCardWidth}
               currentCardHeight={currentCardHeight}
