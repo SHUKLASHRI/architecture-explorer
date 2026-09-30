@@ -3,7 +3,6 @@ import { useExplorer } from '../context/ExplorerContext';
 import type { SidebarTab } from '../types';
 import {
   Boxes,
-  Pin,
   X,
   Search,
   FileCode,
@@ -118,27 +117,14 @@ export const ProjectSidebar: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-1">
-            {/* Pin / Unpin button */}
-            <button
-              onClick={() => setLeftPanelOpen((prev) => !prev)}
-              className={`p-1 rounded-[2px] transition-colors flex items-center justify-center ${
-                leftPanelOpen
-                  ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
-                  : 'text-[#858585] hover:text-[#ffffff] hover:bg-[#383838]'
-              }`}
-              title={leftPanelOpen ? 'Pinned open (Click to unpin and auto-hide)' : 'Click to pin open'}
-            >
-              <Pin size={13} />
-            </button>
-
-            {/* Fold button */}
+            {/* Close / Fold button */}
             <button
               onClick={() => {
                 setLeftPanelOpen(false);
                 setLeftPanelHovered(false);
               }}
-              className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] transition-colors flex items-center justify-center"
-              title="Fold sidebar (Ctrl+B)"
+              className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] micro-tap flex items-center justify-center"
+              title="Close Sidebar (Ctrl+B)"
             >
               <X size={14} />
             </button>

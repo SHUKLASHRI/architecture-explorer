@@ -6,7 +6,6 @@ import {
   Terminal,
   Crosshair,
   Edit,
-  Pin,
   X,
   FileCode,
   Copy,
@@ -198,34 +197,21 @@ export const InspectorPanel: React.FC = () => {
           {/* Refactor shortcut button */}
           <button
             onClick={() => openRenameModal(selectedNode)}
-            className="px-1.5 py-0.5 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1 transition-colors"
+            className="px-1.5 py-0.5 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1 micro-tap"
             title="Safe Refactor / Rename (F2)"
           >
             <Edit size={11} />
             <span>F2</span>
           </button>
 
-          {/* Pin / Unpin button */}
-          <button
-            onClick={() => setRightPanelOpen((prev) => !prev)}
-            className={`p-1 rounded-[2px] transition-colors flex items-center justify-center ${
-              rightPanelOpen
-                ? 'text-[#ffffff] bg-[#094771] border border-[#007acc]'
-                : 'text-[#858585] hover:text-[#ffffff] hover:bg-[#383838]'
-            }`}
-            title={rightPanelOpen ? 'Pinned open (Click to unpin and auto-hide)' : 'Click to pin open'}
-          >
-            <Pin size={13} />
-          </button>
-
-          {/* Fold button */}
+          {/* Close / Fold button */}
           <button
             onClick={() => {
               setRightPanelOpen(false);
               setRightPanelHovered(false);
             }}
-            className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] transition-colors flex items-center justify-center"
-            title="Fold Inspector (Escape)"
+            className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] micro-tap flex items-center justify-center"
+            title="Close Inspector (Escape)"
           >
             <X size={14} />
           </button>

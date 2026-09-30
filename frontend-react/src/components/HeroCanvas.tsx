@@ -1,11 +1,8 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
-import type { GraphNode, AnalysisMode } from '../types';
+import type { GraphNode } from '../types';
 import {
-  Boxes,
-  Crosshair,
   RotateCcw,
-  AlertTriangle,
   Eye,
   EyeOff,
   ZoomIn,
@@ -18,7 +15,6 @@ import {
   LayoutGrid,
   LayoutList,
   FileText,
-  Filter,
 } from 'lucide-react';
 
 /**
@@ -308,14 +304,12 @@ export const HeroCanvas: React.FC = () => {
     selectedNode,
     selectNode,
     analysisMode,
-    setAnalysisMode,
     zoom,
     adjustZoom,
     resetZoom,
     panActive,
     togglePan,
     depthHops,
-    setDepthHops,
     activeCycles,
     deadFunctions,
     focusMode,
@@ -328,7 +322,6 @@ export const HeroCanvas: React.FC = () => {
     cardDensity,
     setCardDensity,
     activeLayerFilter,
-    setActiveLayerFilter,
     minimizeAllPanels,
     isLoading,
     error,
@@ -389,15 +382,6 @@ export const HeroCanvas: React.FC = () => {
 
   const currentCardWidth = cardDensity === 'compact' ? 190 : cardDensity === 'detailed' ? 240 : 220;
   const currentCardHeight = cardDensity === 'compact' ? 34 : cardDensity === 'detailed' ? 104 : 74;
-
-  // Extract distinct architectural layers in project
-  const availableLayers = useMemo(() => {
-    const set = new Set<string>();
-    nodes.forEach((n) => {
-      if (n.tier) set.add(n.tier.toUpperCase());
-    });
-    return Array.from(set);
-  }, [nodes]);
 
   // Compute adaptive base positions across 4 semantic tiers
   const baseNodePositions = useMemo(() => {
@@ -691,144 +675,6 @@ export const HeroCanvas: React.FC = () => {
         }}
       />
 
-      {/* TOP FLOATING OPTIONS HUD: Content, Modes & Filters */}
-      <div
-        className={`absolute top-14 left-1/2 -translate-x-1/2 z-30 pointer-events-auto ${
-          isDimmed ? 'opacity-30 hover:opacity-100 scale-95' : 'opacity-100 scale-100'
-        } transition-all duration-150`}
-      >
-        <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] px-2 py-1 shadow-lg flex items-center gap-2">
-          {/* Mode Switcher Tabs */}
-          <div className="flex items-center gap-1 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
-            {(
-              [
-                { id: 'default', label: 'Architecture', Icon: Boxes },
-                { id: 'impact', label: 'Impact', Icon: Crosshair },
-                { id: 'cycles', label: 'Cycles', Icon: RotateCcw },
-                { id: 'deadcode', label: 'Dead Code', Icon: AlertTriangle },
-              ] as const
-            ).map(({ id, label, Icon }) => {
-              const active = analysisMode === id;
-              return (
-                <button
-                  key={id}
-                  onClick={() => setAnalysisMode(id as AnalysisMode)}
-                  className={`px-2 py-0.5 rounded-[2px] text-[11px] font-sans flex items-center gap-1.5 micro-tap ${
-                    active
-                      ? 'bg-[#094771] text-[#ffffff] font-medium border border-[#007acc]'
-                      : 'text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e]'
-                  }`}
-                  title={`${label} Mode`}
-                >
-                  <Icon size={13} />
-                  <span className="hidden sm:inline">{label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Contextual Depth Slider: ONLY shown in Impact mode to eliminate clutter */}
-          {analysisMode === 'impact' && (
-            <>
-              <div className="h-4 w-[1px] bg-[#3e3e42]" />
-              <div className="flex items-center gap-1 px-1 text-[11px] font-mono text-[#858585]">
-                <span>Hops:</span>
-                <div className="flex gap-0.5">
-                  {[1, 2, 3, 4].map((d) => (
-                    <button
-                      key={d}
-                      onClick={() => setDepthHops(d)}
-                      className={`w-4 h-4 rounded-[2px] text-[10px] flex items-center justify-center font-bold micro-tap ${
-                        depthHops === d
-                          ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
-                          : 'text-[#858585] hover:text-[#cccccc] hover:bg-[#2a2d2e]'
-                      }`}
-                      title={`Trace dependencies up to ${d} hops`}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Architectural Layer Filter */}
-          {availableLayers.length > 0 && (
-            <>
-              <div className="h-4 w-[1px] bg-[#3e3e42]" />
-              <div className="flex items-center gap-1 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
-                <Filter size={12} className="text-[#858585] ml-1 mr-0.5" />
-                <button
-                  onClick={() => setActiveLayerFilter('ALL')}
-                  className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono micro-tap ${
-                    activeLayerFilter === 'ALL'
-                      ? 'bg-[#094771] text-[#ffffff] font-semibold border border-[#007acc]'
-                      : 'text-[#858585] hover:text-[#cccccc]'
-                  }`}
-                  title="Show all architectural layers"
-                >
-                  All
-                </button>
-                {availableLayers.map((layer) => (
-                  <button
-                    key={layer}
-                    onClick={() => setActiveLayerFilter(layer)}
-                    className={`px-1.5 py-0.5 rounded-[2px] text-[10px] font-mono uppercase micro-tap ${
-                      activeLayerFilter === layer
-                        ? 'bg-[#094771] text-[#ffffff] font-semibold border border-[#007acc]'
-                        : 'text-[#858585] hover:text-[#cccccc]'
-                    }`}
-                    title={`Highlight ${layer} tier`}
-                  >
-                    {layer.slice(0, 4)}
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div className="h-4 w-[1px] bg-[#3e3e42]" />
-
-          {/* Information Density Switcher */}
-          <div className="flex items-center gap-0.5 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
-            <button
-              onClick={() => setCardDensity('compact')}
-              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
-                cardDensity === 'compact'
-                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
-                  : 'text-[#858585] hover:text-[#cccccc]'
-              }`}
-              title="Compact View (Pill cards for high-level structure)"
-            >
-              <LayoutList size={12} />
-            </button>
-            <button
-              onClick={() => setCardDensity('standard')}
-              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
-                cardDensity === 'standard'
-                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
-                  : 'text-[#858585] hover:text-[#cccccc]'
-              }`}
-              title="Standard View (Balanced metrics and identifiers)"
-            >
-              <LayoutGrid size={12} />
-            </button>
-            <button
-              onClick={() => setCardDensity('detailed')}
-              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
-                cardDensity === 'detailed'
-                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
-                  : 'text-[#858585] hover:text-[#cccccc]'
-              }`}
-              title="Detailed View (Rich docstrings and parameter signatures)"
-            >
-              <FileText size={12} />
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* BOTTOM FLOATING CANVAS TOOLBAR: Consolidated Viewport, Layout & Camera Controls */}
       <div
         className={`absolute bottom-8 left-1/2 -translate-x-1/2 z-30 pointer-events-auto ${
@@ -873,6 +719,47 @@ export const HeroCanvas: React.FC = () => {
           >
             <Maximize2 size={14} />
           </button>
+
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
+
+          {/* Card Density Switcher */}
+          <div className="flex items-center gap-0.5 bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42]">
+            <button
+              onClick={() => setCardDensity('compact')}
+              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
+                cardDensity === 'compact'
+                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                  : 'text-[#858585] hover:text-[#cccccc]'
+              }`}
+              title="Compact View (Pill cards for high-level structure)"
+            >
+              <LayoutList size={12} />
+            </button>
+            <button
+              onClick={() => setCardDensity('standard')}
+              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
+                cardDensity === 'standard'
+                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                  : 'text-[#858585] hover:text-[#cccccc]'
+              }`}
+              title="Standard View (Balanced metrics and identifiers)"
+            >
+              <LayoutGrid size={12} />
+            </button>
+            <button
+              onClick={() => setCardDensity('detailed')}
+              className={`p-1 rounded-[2px] text-[10px] micro-tap ${
+                cardDensity === 'detailed'
+                  ? 'bg-[#094771] text-[#ffffff] border border-[#007acc]'
+                  : 'text-[#858585] hover:text-[#cccccc]'
+              }`}
+              title="Detailed View (Rich docstrings and signatures)"
+            >
+              <FileText size={12} />
+            </button>
+          </div>
+
+          <div className="h-4 w-[1px] bg-[#3e3e42]" />
 
           {/* Auto-Arrange / Reset Layout */}
           <button
