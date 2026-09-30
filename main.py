@@ -26,13 +26,25 @@ sys.path.insert(0, resource_path("."))
 import webview
 from app import app as flask_app
 
-PORT = 5173
+def find_available_port(preferred_port: int = 5173) -> int:
+    """Find an available TCP port starting from preferred_port."""
+    import socket
+    for p in range(preferred_port, preferred_port + 30):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('127.0.0.1', p))
+                return p
+        except OSError:
+            continue
+    return preferred_port
+
+
+PORT = find_available_port(5173)
 _flask_ready = threading.Event()
 
 
 def _run_flask():
     """Run Flask in a background daemon thread."""
-    # Suppress Flask's startup banner in the packaged app
     import logging
     log = logging.getLogger('werkzeug')
     log.setLevel(logging.ERROR)
@@ -76,10 +88,10 @@ if __name__ == "__main__":
 
     # Wait for it to be ready
     if not _wait_for_flask():
-        print("ERROR: Flask server did not start in time.", file=sys.stderr)
+        print(f"ERROR: Flask server did not start on port {PORT} in time.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Architecture Explorer → http://localhost:{PORT}")
+    print(f"Architecture Explorer → http://127.0.0.1:{PORT}")
 
     class DesktopApi:
         def open_folder_dialog(self):
@@ -94,7 +106,7 @@ if __name__ == "__main__":
     # Open native window (like Figma / VS Code desktop)
     window = webview.create_window(
         title="Architecture Explorer",
-        url=f"http://localhost:{PORT}",
+        url=f"http://127.0.0.1:{PORT}",
         width=1440,
         height=900,
         resizable=True,
@@ -103,4 +115,9 @@ if __name__ == "__main__":
         js_api=api,
     )
 
-    webview.start(debug=False)
+    try:
+        # Prefer modern Edge Chromium engine on Windows for maximum 120 FPS performance
+        webview.start(gui='edgechromium', debug=False)
+    except Exception:
+        webview.start(debug=False)
+

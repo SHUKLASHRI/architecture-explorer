@@ -23,8 +23,8 @@ import {
 
 /**
  * Robust adaptive cubic bezier calculation that anchors cables cleanly to
- * whichever card edge (left, right, top, bottom) makes geometric sense,
- * preventing cable detachment or backward distortion when dragging nodes anywhere.
+ * card edges based on architectural column flow, preventing cable detachment,
+ * erratic jumping, or backward distortion when dragging nodes anywhere.
  */
 function computeEdgePath(
   sourcePos: { x: number; y: number },
@@ -32,75 +32,269 @@ function computeEdgePath(
   w: number = 220,
   h: number = 74
 ): string {
-  const srcCenter = { x: sourcePos.x + w / 2, y: sourcePos.y + h / 2 };
-  const tgtCenter = { x: targetPos.x + w / 2, y: targetPos.y + h / 2 };
+  const horizontalOverlapThreshold = 50;
 
-  const dx = tgtCenter.x - srcCenter.x;
-  const dy = tgtCenter.y - srcCenter.y;
-
-  let startX: number;
-  let startY: number;
-  let endX: number;
-  let endY: number;
-  let cp1X: number;
-  let cp1Y: number;
-  let cp2X: number;
-  let cp2Y: number;
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    // Horizontal dominant
-    if (dx >= 0) {
-      // Source right -> Target left
-      startX = sourcePos.x + w;
-      startY = sourcePos.y + h / 2;
-      endX = targetPos.x;
-      endY = targetPos.y + h / 2;
-      const dist = Math.max(Math.min((endX - startX) * 0.45, 140), 30);
-      cp1X = startX + dist;
-      cp1Y = startY;
-      cp2X = endX - dist;
-      cp2Y = endY;
-    } else {
-      // Source left -> Target right
-      startX = sourcePos.x;
-      startY = sourcePos.y + h / 2;
-      endX = targetPos.x + w;
-      endY = targetPos.y + h / 2;
-      const dist = Math.max(Math.min((startX - endX) * 0.45, 140), 30);
-      cp1X = startX - dist;
-      cp1Y = startY;
-      cp2X = endX + dist;
-      cp2Y = endY;
-    }
-  } else {
-    // Vertical dominant
-    if (dy >= 0) {
-      // Source bottom -> Target top
-      startX = sourcePos.x + w / 2;
-      startY = sourcePos.y + h;
-      endX = targetPos.x + w / 2;
-      endY = targetPos.y;
-      const dist = Math.max(Math.min((endY - startY) * 0.45, 120), 25);
-      cp1X = startX;
-      cp1Y = startY + dist;
-      cp2X = endX;
-      cp2Y = endY - dist;
-    } else {
-      // Source top -> Target bottom
-      startX = sourcePos.x + w / 2;
-      startY = sourcePos.y;
-      endX = targetPos.x + w / 2;
-      endY = targetPos.y + h;
-      const dist = Math.max(Math.min((startY - endY) * 0.45, 120), 25);
-      cp1X = startX;
-      cp1Y = startY - dist;
-      cp2X = endX;
-      cp2Y = endY + dist;
-    }
+  // Clear horizontal progression between tiers (Left to Right)
+  if (targetPos.x >= sourcePos.x + horizontalOverlapThreshold) {
+    const startX = sourcePos.x + w;
+    const startY = sourcePos.y + h / 2;
+    const endX = targetPos.x;
+    const endY = targetPos.y + h / 2;
+    const dx = endX - startX;
+    const dist = Math.max(Math.min(dx * 0.5, 160), 35);
+    const cp1X = startX + dist;
+    const cp1Y = startY;
+    const cp2X = endX - dist;
+    const cp2Y = endY;
+    return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
   }
 
-  return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+  // Right to Left progression
+  if (sourcePos.x >= targetPos.x + w + horizontalOverlapThreshold) {
+    const startX = sourcePos.x;
+    const startY = sourcePos.y + h / 2;
+    const endX = targetPos.x + w;
+    const endY = targetPos.y + h / 2;
+    const dx = startX - endX;
+    const dist = Math.max(Math.min(dx * 0.5, 160), 35);
+    const cp1X = startX - dist;
+    const cp1Y = startY;
+    const cp2X = endX + dist;
+    const cp2Y = endY;
+    return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+  }
+
+  // Same column / overlapping vertically
+  if (targetPos.y >= sourcePos.y) {
+    const startX = sourcePos.x + w / 2;
+    const startY = sourcePos.y + h;
+    const endX = targetPos.x + w / 2;
+    const endY = targetPos.y;
+    const dy = endY - startY;
+    const dist = Math.max(Math.min(dy * 0.4, 120), 20);
+    const cp1X = startX;
+    const cp1Y = startY + dist;
+    const cp2X = endX;
+    const cp2Y = endY - dist;
+    return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+  } else {
+    const startX = sourcePos.x + w / 2;
+    const startY = sourcePos.y;
+    const endX = targetPos.x + w / 2;
+    const endY = targetPos.y + h;
+    const dy = startY - endY;
+    const dist = Math.max(Math.min(dy * 0.4, 120), 20);
+    const cp1X = startX;
+    const cp1Y = startY - dist;
+    const cp2X = endX;
+    const cp2Y = endY + dist;
+    return `M ${startX} ${startY} C ${cp1X} ${cp1Y}, ${cp2X} ${cp2Y}, ${endX} ${endY}`;
+  }
 }
+
+interface EdgeItemProps {
+  id: string;
+  d: string;
+  isEdgeActive: boolean;
+  isCycle: boolean;
+}
+
+const EdgeItem = React.memo<EdgeItemProps>(({ d, isEdgeActive, isCycle }) => {
+  let strokeColor = '#454545';
+  let strokeWidth = 1.2;
+  let marker = 'url(#arrow-default)';
+  let dashClass = '';
+
+  if (isCycle) {
+    strokeColor = '#cca700';
+    strokeWidth = 2.0;
+    marker = 'url(#arrow-cycle)';
+    dashClass = 'cycle-cable';
+  } else if (isEdgeActive) {
+    strokeColor = '#007acc';
+    strokeWidth = 1.8;
+    marker = 'url(#arrow-active)';
+    dashClass = 'flow-cable';
+  }
+
+  return (
+    <path
+      d={d}
+      fill="none"
+      stroke={strokeColor}
+      strokeWidth={strokeWidth}
+      className={dashClass}
+      markerEnd={marker}
+    />
+  );
+});
+
+interface NodeCardProps {
+  node: GraphNode;
+  pos: { x: number; y: number };
+  isSelected: boolean;
+  isConnected: boolean;
+  isDead: boolean;
+  isDragging: boolean;
+  isLayerDimmed: boolean;
+  isDimmedOther: boolean;
+  cardDensity: 'compact' | 'standard' | 'detailed';
+  currentCardWidth: number;
+  currentCardHeight: number;
+  onMouseDown: (e: React.MouseEvent, node: GraphNode) => void;
+}
+
+const NodeCard = React.memo<NodeCardProps>(({
+  node,
+  pos,
+  isSelected,
+  isConnected,
+  isDead,
+  isDragging,
+  isLayerDimmed,
+  isDimmedOther,
+  cardDensity,
+  currentCardWidth,
+  currentCardHeight,
+  onMouseDown,
+}) => {
+  const isClass = node.kind === 'class';
+
+  let borderClass = 'border-[#3e3e42] hover:border-[#606060]';
+  let bgClass = 'bg-[#252526]';
+  let opacityClass = 'opacity-100';
+
+  if (isDragging) {
+    borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-2xl';
+    bgClass = 'bg-[#2d2d30]';
+  } else if (isSelected) {
+    borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-lg';
+    bgClass = 'bg-[#2d2d30]';
+  } else if (isConnected) {
+    borderClass = 'border-[#007acc]/70';
+    bgClass = 'bg-[#252528]';
+  } else if (isDead) {
+    borderClass = 'border-[#f14c4c]';
+    bgClass = 'bg-[#2b2020]';
+  } else if (isDimmedOther) {
+    opacityClass = 'opacity-35 hover:opacity-90';
+  }
+
+  if (isLayerDimmed && !isSelected) {
+    opacityClass = 'opacity-20 hover:opacity-85';
+  }
+
+  return (
+    <div
+      onMouseDown={(e) => onMouseDown(e, node)}
+      style={{
+        transform: `translate3d(${pos.x}px, ${pos.y}px, 0)`,
+        width: `${currentCardWidth}px`,
+        height: `${currentCardHeight}px`,
+        willChange: isDragging ? 'transform' : 'auto',
+      }}
+      className={`absolute top-0 left-0 rounded-[3px] border cursor-grab active:cursor-grabbing select-none shadow-md pointer-events-auto flex flex-col justify-between overflow-hidden ${
+        isDragging
+          ? 'transition-none z-20'
+          : 'transition-colors duration-150 transition-opacity z-10'
+      } ${cardDensity === 'compact' ? 'px-2 py-1.5' : 'p-2.5'} ${borderClass} ${bgClass} ${opacityClass}`}
+    >
+      {cardDensity === 'compact' ? (
+        <div className="flex items-center justify-between pointer-events-none gap-1.5 w-full h-full">
+          <div className="flex items-center gap-1.5 truncate">
+            <span
+              className={`text-[8px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-bold tracking-wider ${
+                isClass
+                  ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
+                  : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
+              }`}
+            >
+              {isClass ? 'C' : 'fn'}
+            </span>
+            <span
+              className={`font-mono text-xs font-semibold truncate ${
+                isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'
+              }`}
+            >
+              {node.name}
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-[#858585] flex-shrink-0">
+            L{node.line}
+          </span>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between mb-1 pointer-events-none gap-1">
+            <div className="flex items-center gap-1">
+              <span
+                className={`text-[9px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-semibold tracking-wider ${
+                  isClass
+                    ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
+                    : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
+                }`}
+              >
+                {isClass ? 'class' : node.is_async ? 'async fn' : 'fn'}
+              </span>
+              {node.tier && (
+                <span className="text-[8px] font-mono px-1 py-0.2 rounded-[2px] bg-[#1e1e1e] text-[#858585] uppercase border border-[#3e3e42]">
+                  {node.tier}
+                </span>
+              )}
+            </div>
+
+            <span className="text-[10px] font-mono text-[#858585] truncate max-w-[90px]">
+              {node.filename}
+            </span>
+          </div>
+
+          <div className="font-mono text-xs font-semibold truncate flex items-center justify-between pointer-events-none">
+            <div className="truncate">
+              <span className={isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'}>
+                {node.name}
+              </span>
+              <span className="text-[#858585] font-normal">()</span>
+            </div>
+            <GripVertical
+              size={13}
+              className="text-[#858585] opacity-0 group-hover:opacity-100 flex-shrink-0"
+            />
+          </div>
+
+          {cardDensity === 'detailed' && node.docstring && (
+            <div className="text-[10px] font-mono text-[#6a9955] italic truncate max-w-full my-0.5 opacity-90 pointer-events-none">
+              "{node.docstring.split('\n')[0].slice(0, 38)}..."
+            </div>
+          )}
+
+          <div className="mt-1 pt-1 border-t border-[#3e3e42] flex items-center justify-between text-[10px] font-mono text-[#858585] pointer-events-none">
+            <span>L{node.line}</span>
+            <div className="flex items-center gap-1.5">
+              {node.cyclomatic_complexity !== undefined && node.cyclomatic_complexity !== null && (
+                <span
+                  className={`text-[9px] px-1 rounded-[2px] font-semibold ${
+                    node.complexity_rating === 'low'
+                      ? 'text-[#4ec9b0] bg-[#203330]'
+                      : node.complexity_rating === 'moderate'
+                      ? 'text-[#cca700] bg-[#333020]'
+                      : 'text-[#f14c4c] bg-[#332020]'
+                  }`}
+                >
+                  CC {node.cyclomatic_complexity}
+                </span>
+              )}
+              {Array.isArray(node.parameters) && node.parameters.length > 0 && (
+                <span className="text-[#858585]">
+                  {node.parameters.length}p
+                </span>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+});
 
 export const HeroCanvas: React.FC = () => {
   const {
@@ -168,7 +362,9 @@ export const HeroCanvas: React.FC = () => {
     currentY: number;
   } | null>(null);
 
-  const rafId = useRef<number | null>(null);
+  const nodeRafId = useRef<number | null>(null);
+  const panRafId = useRef<number | null>(null);
+  const nextPanOffset = useRef<{ x: number; y: number } | null>(null);
   const [activeDraggingId, setActiveDraggingId] = useState<string | null>(null);
 
   // ResizeObserver for dynamic adaptive sizing
@@ -342,13 +538,11 @@ export const HeroCanvas: React.FC = () => {
           hasMovedPan.current = true;
         }
 
-        const newX = Math.round(dragInfo.current.startNodeX + dx);
-        const newY = Math.round(dragInfo.current.startNodeY + dy);
-        dragInfo.current.currentX = newX;
-        dragInfo.current.currentY = newY;
+        dragInfo.current.currentX = Math.round(dragInfo.current.startNodeX + dx);
+        dragInfo.current.currentY = Math.round(dragInfo.current.startNodeY + dy);
 
-        if (!rafId.current) {
-          rafId.current = requestAnimationFrame(() => {
+        if (!nodeRafId.current) {
+          nodeRafId.current = requestAnimationFrame(() => {
             if (dragInfo.current) {
               setLocalPositions((prev) => ({
                 ...prev,
@@ -358,30 +552,42 @@ export const HeroCanvas: React.FC = () => {
                 },
               }));
             }
-            rafId.current = null;
+            nodeRafId.current = null;
           });
         }
         return;
       }
 
-      // 2. Panning Canvas
+      // 2. Panning Canvas (RAF batching to avoid flooding main thread at 500Hz)
       if (isPanning.current) {
         const dx = e.clientX - clickStartPos.current.x;
         const dy = e.clientY - clickStartPos.current.y;
         if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
           hasMovedPan.current = true;
         }
-        setPanOffset({
+        nextPanOffset.current = {
           x: e.clientX - panStart.current.x,
           y: e.clientY - panStart.current.y,
-        });
+        };
+        if (!panRafId.current) {
+          panRafId.current = requestAnimationFrame(() => {
+            if (nextPanOffset.current) {
+              setPanOffset(nextPanOffset.current);
+            }
+            panRafId.current = null;
+          });
+        }
       }
     };
 
     const onWindowMouseUp = () => {
-      if (rafId.current) {
-        cancelAnimationFrame(rafId.current);
-        rafId.current = null;
+      if (nodeRafId.current) {
+        cancelAnimationFrame(nodeRafId.current);
+        nodeRafId.current = null;
+      }
+      if (panRafId.current) {
+        cancelAnimationFrame(panRafId.current);
+        panRafId.current = null;
       }
 
       // Sync final position to context
@@ -409,7 +615,8 @@ export const HeroCanvas: React.FC = () => {
     return () => {
       window.removeEventListener('mousemove', onWindowMouseMove);
       window.removeEventListener('mouseup', onWindowMouseUp);
-      if (rafId.current) cancelAnimationFrame(rafId.current);
+      if (nodeRafId.current) cancelAnimationFrame(nodeRafId.current);
+      if (panRafId.current) cancelAnimationFrame(panRafId.current);
     };
   }, [zoom, updateNodePosition, minimizeAllPanels]);
 
@@ -428,11 +635,12 @@ export const HeroCanvas: React.FC = () => {
     setIsCurrentlyPanning(true);
   };
 
-  const handleNodeMouseDown = (e: React.MouseEvent, node: GraphNode) => {
+  const handleNodeMouseDown = useCallback((e: React.MouseEvent, node: GraphNode) => {
     e.stopPropagation();
     clickStartPos.current = { x: e.clientX, y: e.clientY };
     hasMovedPan.current = false;
 
+    // Visually focus node immediately
     selectNode(node);
 
     const currentPos = effectivePositions.get(node.id) || { x: 0, y: 0 };
@@ -446,7 +654,7 @@ export const HeroCanvas: React.FC = () => {
       currentY: currentPos.y,
     };
     setActiveDraggingId(node.id);
-  };
+  }, [selectNode, effectivePositions]);
 
   // Canvas zoom with mouse wheel
   const handleWheel = (e: React.WheelEvent) => {
@@ -819,190 +1027,50 @@ export const HeroCanvas: React.FC = () => {
                 (c) => c.includes(edge.source) && c.includes(edge.target)
               );
 
-            let strokeColor = '#454545';
-            let strokeWidth = 1.2;
-            let marker = 'url(#arrow-default)';
-            let dashClass = '';
-
-            if (isCycle) {
-              strokeColor = '#cca700';
-              strokeWidth = 2.0;
-              marker = 'url(#arrow-cycle)';
-              dashClass = 'cycle-cable';
-            } else if (isEdgeActive) {
-              strokeColor = '#007acc';
-              strokeWidth = 1.8;
-              marker = 'url(#arrow-active)';
-              dashClass = 'flow-cable';
-            }
-
             return (
-              <path
+              <EdgeItem
                 key={`${edge.source}-${edge.target}-${idx}`}
+                id={`${edge.source}-${edge.target}-${idx}`}
                 d={d}
-                fill="none"
-                stroke={strokeColor}
-                strokeWidth={strokeWidth}
-                className={dashClass}
-                markerEnd={marker}
+                isEdgeActive={Boolean(isEdgeActive)}
+                isCycle={Boolean(isCycle)}
               />
             );
           })}
         </svg>
 
-        {/* DRAGGABLE VS CODE STYLE GRAPH NODES */}
+        {/* DRAGGABLE VS CODE STYLE GRAPH NODES (Memoized for 0-latency 120 FPS dragging) */}
         {nodes.map((node) => {
           const pos = effectivePositions.get(node.id);
           if (!pos) return null;
 
           const isSelected = selectedNode?.id === node.id;
           const isConnected = activeNodeIds.has(node.id);
-          const isDead = deadNodeIds.has(node.id);
-          const isClass = node.kind === 'class';
+          const isDead = analysisMode === 'deadcode' && deadNodeIds.has(node.id);
           const isDragging = activeDraggingId === node.id;
 
           const isLayerDimmed =
             activeLayerFilter !== 'ALL' &&
             (node.tier || '').toUpperCase() !== activeLayerFilter.toUpperCase();
 
-          let borderClass = 'border-[#3e3e42] hover:border-[#606060]';
-          let bgClass = 'bg-[#252526]';
-          let opacityClass = 'opacity-100';
-
-          if (isDragging) {
-            borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-2xl';
-            bgClass = 'bg-[#2d2d30]';
-          } else if (isSelected) {
-            borderClass = 'border-[#007acc] ring-1 ring-[#007acc] shadow-lg';
-            bgClass = 'bg-[#2d2d30]';
-          } else if (isConnected) {
-            borderClass = 'border-[#007acc]/70';
-            bgClass = 'bg-[#252528]';
-          } else if (analysisMode === 'deadcode' && isDead) {
-            borderClass = 'border-[#f14c4c]';
-            bgClass = 'bg-[#2b2020]';
-          } else if (selectedNode && !isConnected) {
-            opacityClass = 'opacity-35 hover:opacity-90';
-          }
-
-          if (isLayerDimmed && !isSelected) {
-            opacityClass = 'opacity-20 hover:opacity-85';
-          }
+          const isDimmedOther = Boolean(selectedNode && !isConnected);
 
           return (
-            <div
+            <NodeCard
               key={node.id}
-              onMouseDown={(e) => handleNodeMouseDown(e, node)}
-              style={{
-                transform: `translate(${pos.x}px, ${pos.y}px)`,
-                width: `${currentCardWidth}px`,
-                height: `${currentCardHeight}px`,
-                willChange: isDragging ? 'transform' : 'auto',
-              }}
-              className={`absolute top-0 left-0 rounded-[3px] border cursor-grab active:cursor-grabbing transition-all duration-150 select-none shadow-md pointer-events-auto flex flex-col justify-between overflow-hidden ${
-                cardDensity === 'compact' ? 'px-2 py-1.5' : 'p-2.5'
-              } ${borderClass} ${bgClass} ${opacityClass}`}
-            >
-              {cardDensity === 'compact' ? (
-                /* COMPACT DENSITY: Ultra-minimal single-line pill card */
-                <div className="flex items-center justify-between pointer-events-none gap-1.5 w-full h-full">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span
-                      className={`text-[8px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-bold tracking-wider ${
-                        isClass
-                          ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
-                          : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
-                      }`}
-                    >
-                      {isClass ? 'C' : 'fn'}
-                    </span>
-                    <span
-                      className={`font-mono text-xs font-semibold truncate ${
-                        isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'
-                      }`}
-                    >
-                      {node.name}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-mono text-[#858585] flex-shrink-0">
-                    L{node.line}
-                  </span>
-                </div>
-              ) : (
-                /* STANDARD & DETAILED DENSITY */
-                <>
-                  {/* Header: Kind Badge, Tier & File */}
-                  <div className="flex items-center justify-between mb-1 pointer-events-none gap-1">
-                    <div className="flex items-center gap-1">
-                      <span
-                        className={`text-[9px] font-mono px-1 py-0.2 rounded-[2px] uppercase font-semibold tracking-wider ${
-                          isClass
-                            ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
-                            : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
-                        }`}
-                      >
-                        {isClass ? 'class' : node.is_async ? 'async fn' : 'fn'}
-                      </span>
-                      {node.tier && (
-                        <span className="text-[8px] font-mono px-1 py-0.2 rounded-[2px] bg-[#1e1e1e] text-[#858585] uppercase border border-[#3e3e42]">
-                          {node.tier}
-                        </span>
-                      )}
-                    </div>
-
-                    <span className="text-[10px] font-mono text-[#858585] truncate max-w-[90px]">
-                      {node.filename}
-                    </span>
-                  </div>
-
-                  {/* Symbol Name with VS Code syntax color */}
-                  <div className="font-mono text-xs font-semibold truncate flex items-center justify-between pointer-events-none">
-                    <div className="truncate">
-                      <span className={isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'}>
-                        {node.name}
-                      </span>
-                      <span className="text-[#858585] font-normal">()</span>
-                    </div>
-                    <GripVertical
-                      size={13}
-                      className="text-[#858585] opacity-0 group-hover:opacity-100 flex-shrink-0"
-                    />
-                  </div>
-
-                  {/* Detailed Density: Docstring preview snippet */}
-                  {cardDensity === 'detailed' && node.docstring && (
-                    <div className="text-[10px] font-mono text-[#6a9955] italic truncate max-w-full my-0.5 opacity-90 pointer-events-none">
-                      "{node.docstring.split('\n')[0].slice(0, 38)}..."
-                    </div>
-                  )}
-
-                  {/* Sub-meta: Lines, params, and Cyclomatic Complexity */}
-                  <div className="mt-1 pt-1 border-t border-[#3e3e42] flex items-center justify-between text-[10px] font-mono text-[#858585] pointer-events-none">
-                    <span>L{node.line}</span>
-                    <div className="flex items-center gap-1.5">
-                      {node.cyclomatic_complexity !== undefined && node.cyclomatic_complexity !== null && (
-                        <span
-                          className={`text-[9px] px-1 rounded-[2px] font-semibold ${
-                            node.complexity_rating === 'low'
-                              ? 'text-[#4ec9b0] bg-[#203330]'
-                              : node.complexity_rating === 'moderate'
-                              ? 'text-[#cca700] bg-[#333020]'
-                              : 'text-[#f14c4c] bg-[#332020]'
-                          }`}
-                        >
-                          CC {node.cyclomatic_complexity}
-                        </span>
-                      )}
-                      {Array.isArray(node.parameters) && node.parameters.length > 0 && (
-                        <span className="text-[#858585]">
-                          {node.parameters.length}p
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
+              node={node}
+              pos={pos}
+              isSelected={isSelected}
+              isConnected={isConnected}
+              isDead={isDead}
+              isDragging={isDragging}
+              isLayerDimmed={isLayerDimmed}
+              isDimmedOther={isDimmedOther}
+              cardDensity={cardDensity}
+              currentCardWidth={currentCardWidth}
+              currentCardHeight={currentCardHeight}
+              onMouseDown={handleNodeMouseDown}
+            />
           );
         })}
       </div>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type {
   GraphNode,
   GraphEdge,
@@ -169,14 +169,19 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setToasts((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
+  // In-memory cache for 0ms instantaneous symbol inspection without network stutter
+  const sourceCache = useRef<Map<string, SourceResponse>>(new Map());
+  const impactCache = useRef<Map<string, ImpactResponse>>(new Map());
+  const fetchTimeoutRef = useRef<any>(null);
+
   const clearError = useCallback(() => setError(null), []);
 
-  // Poll health check
+  // Poll health check (guarded to avoid unneeded state updates)
   useEffect(() => {
-    api.checkHealth().then((ok) => setApiConnected(ok));
+    api.checkHealth().then((ok) => setApiConnected((prev) => (prev === ok ? prev : ok)));
     const interval = setInterval(() => {
-      api.checkHealth().then((ok) => setApiConnected(ok));
-    }, 10000);
+      api.checkHealth().then((ok) => setApiConnected((prev) => (prev === ok ? prev : ok)));
+    }, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -206,6 +211,8 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const targetPath = customPath || projectPath;
       setIsLoading(true);
       setError(null);
+      sourceCache.current.clear();
+      impactCache.current.clear();
 
       try {
         const data: AnalyzeResponse = await api.analyzeProject(targetPath, forceRefresh);
@@ -244,28 +251,62 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     loadProject();
   }, []);
 
-  // Fetch node source & impact whenever selectedNode changes
-  const fetchNodeDetails = useCallback((node: GraphNode) => {
-    setIsLoadingSource(true);
-    setSourceError(null);
+  // Fetch node source & impact whenever selectedNode changes (with cache & debounce)
+  const fetchNodeDetails = useCallback((node: GraphNode, immediate = false) => {
+    const srcKey = `${node.file}:${node.line}`;
+    const cachedSrc = sourceCache.current.get(srcKey);
+    const cachedImpact = impactCache.current.get(node.id);
 
-    Promise.allSettled([
-      api.fetchSourceSnippet(node.file, node.line),
-      api.analyzeImpact(node.id),
-    ]).then(([srcRes, impactRes]) => {
-      if (srcRes.status === 'fulfilled') {
-        setSourceSnippet(srcRes.value);
-      } else {
-        setSourceSnippet(null);
-        setSourceError(srcRes.reason?.message || 'Could not load source code');
-      }
-      if (impactRes.status === 'fulfilled') {
-        setImpact(impactRes.value);
-      } else {
-        setImpact(null);
-      }
+    // If completely cached, update state immediately with zero network delay
+    if (cachedSrc && cachedImpact) {
+      setSourceSnippet(cachedSrc);
+      setImpact(cachedImpact);
+      setSourceError(null);
       setIsLoadingSource(false);
-    });
+      return;
+    }
+
+    if (cachedSrc) setSourceSnippet(cachedSrc);
+    if (cachedImpact) setImpact(cachedImpact);
+
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+      fetchTimeoutRef.current = null;
+    }
+
+    const executeFetch = () => {
+      setIsLoadingSource(true);
+      setSourceError(null);
+
+      const promises: [Promise<any>, Promise<any>] = [
+        cachedSrc ? Promise.resolve(cachedSrc) : api.fetchSourceSnippet(node.file, node.line),
+        cachedImpact ? Promise.resolve(cachedImpact) : api.analyzeImpact(node.id),
+      ];
+
+      Promise.allSettled(promises).then(([srcRes, impactRes]) => {
+        if (srcRes.status === 'fulfilled') {
+          sourceCache.current.set(srcKey, srcRes.value);
+          setSourceSnippet(srcRes.value);
+        } else if (!cachedSrc) {
+          setSourceSnippet(null);
+          setSourceError(srcRes.reason?.message || 'Could not load source code');
+        }
+        if (impactRes.status === 'fulfilled') {
+          impactCache.current.set(node.id, impactRes.value);
+          setImpact(impactRes.value);
+        } else if (!cachedImpact) {
+          setImpact(null);
+        }
+        setIsLoadingSource(false);
+      });
+    };
+
+    if (immediate) {
+      executeFetch();
+    } else {
+      // 120ms debounce prevents network storm if user is starting a drag gesture
+      fetchTimeoutRef.current = setTimeout(executeFetch, 120);
+    }
   }, []);
 
   useEffect(() => {
@@ -280,7 +321,10 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const retrySourceSnippet = useCallback(() => {
     if (selectedNode) {
-      fetchNodeDetails(selectedNode);
+      const srcKey = `${selectedNode.file}:${selectedNode.line}`;
+      sourceCache.current.delete(srcKey);
+      impactCache.current.delete(selectedNode.id);
+      fetchNodeDetails(selectedNode, true);
     }
   }, [selectedNode, fetchNodeDetails]);
 
@@ -388,6 +432,8 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const handleRenameSuccess = useCallback(
     (data: any) => {
+      sourceCache.current.clear();
+      impactCache.current.clear();
       if (data.nodes && data.edges) {
         setNodes(data.nodes);
         setEdges(data.edges);
