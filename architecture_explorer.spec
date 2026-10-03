@@ -40,6 +40,10 @@ a = Analysis(
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
+import sys
+
+icon_file = 'icon.ico' if sys.platform == 'win32' else None
+
 exe = EXE(
     pyz,
     a.scripts,
@@ -51,7 +55,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=(sys.platform == 'win32'),
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,   # no console window
@@ -60,5 +64,23 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='icon.ico',
+    icon=icon_file,
 )
+
+if sys.platform == 'darwin':
+    app = BUNDLE(
+        exe,
+        name='IrminsulIDE.app',
+        icon=None,
+        bundle_identifier='io.irminsul.ide',
+        info_plist={
+            'CFBundleName': 'Irminsul IDE',
+            'CFBundleDisplayName': 'Irminsul IDE',
+            'CFBundleIdentifier': 'io.irminsul.ide',
+            'CFBundleVersion': '1.0.0',
+            'CFBundlePackageType': 'APPL',
+            'CFBundleShortVersionString': '1.0.0',
+            'NSHighResolutionCapable': 'True',
+        },
+    )
+

@@ -86,7 +86,7 @@ def api_choose_folder():
         except Exception:
             pass
 
-        # 2. Try PowerShell Windows Forms FolderBrowserDialog
+        # 2. Windows PowerShell FolderBrowserDialog
         if sys.platform == "win32":
             try:
                 import subprocess
@@ -99,6 +99,30 @@ def api_choose_folder():
                     "if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }"
                 )
                 res = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True, timeout=120)
+                out = res.stdout.strip()
+                if out and os.path.isdir(out):
+                    return out
+            except Exception:
+                pass
+
+        # 3. macOS osascript native folder chooser
+        if sys.platform == "darwin":
+            try:
+                import subprocess
+                cmd = ["osascript", "-e", 'POSIX path of (choose folder with prompt "Select Python Project Folder - Irminsul IDE")']
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+                out = res.stdout.strip()
+                if out and os.path.isdir(out):
+                    return out
+            except Exception:
+                pass
+
+        # 4. Linux zenity / kdialog folder chooser
+        if sys.platform.startswith("linux"):
+            try:
+                import subprocess
+                cmd = ["zenity", "--file-selection", "--directory", "--title=Select Python Project Folder - Irminsul IDE"]
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
                 out = res.stdout.strip()
                 if out and os.path.isdir(out):
                     return out
