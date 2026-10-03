@@ -16,6 +16,7 @@ import {
   LayoutList,
   FileText,
 } from 'lucide-react';
+import { IrminsulLogo } from './IrminsulLogo';
 
 /**
  * Robust adaptive cubic bezier calculation that anchors cables cleanly to
@@ -834,11 +835,13 @@ export const HeroCanvas: React.FC = () => {
               </button>
             </div>
           ) : (
-            <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] p-6 shadow-xl max-w-sm flex flex-col items-center gap-3">
-              <FolderOpen size={28} className="text-[#858585]" />
-              <div className="text-xs font-semibold text-[#ffffff]">No Python Symbols Found</div>
-              <p className="text-[11px] text-[#858585] leading-relaxed text-center">
-                No Python source files found in this workspace directory. Open a project folder to inspect its architecture.
+            <div className="bg-[#252526] border border-[#3e3e42] rounded-[4px] p-8 shadow-2xl max-w-sm flex flex-col items-center gap-3">
+              <IrminsulLogo className="w-12 h-12 mb-1 filter drop-shadow-[0_0_12px_rgba(0,122,204,0.3)]" />
+              <div className="text-sm font-semibold text-[#ffffff]">Irminsul IDE</div>
+              <p className="text-xs text-[#858585] leading-relaxed text-center">
+                {projectPath
+                  ? 'No Python source files found in this workspace folder. Open another folder or create a Python module.'
+                  : 'No project open. Open a Python project folder to visualize its architecture and refactor code.'}
               </p>
               <button
                 onClick={async () => {
@@ -847,13 +850,13 @@ export const HeroCanvas: React.FC = () => {
                     const chosen = await pyApi.choose_folder();
                     if (chosen) loadProject(chosen);
                   } else {
-                    const p = window.prompt('Enter path to Python workspace folder:', projectPath);
+                    const p = window.prompt('Enter path to Python workspace folder:', projectPath || '');
                     if (p?.trim()) loadProject(p.trim());
                   }
                 }}
-                className="mt-2 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-1.5 rounded-[2px] text-xs transition-colors flex items-center gap-1.5"
+                className="mt-2 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-2 rounded-[3px] text-xs transition-colors flex items-center gap-2 shadow"
               >
-                <FolderOpen size={13} />
+                <FolderOpen size={14} />
                 <span>Open Folder...</span>
               </button>
             </div>

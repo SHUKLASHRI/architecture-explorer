@@ -139,16 +139,8 @@ interface ExplorerContextType {
 
 const ExplorerContext = createContext<ExplorerContextType | null>(null);
 
-const DEFAULT_INITIAL_PATH = (() => {
-  try {
-    return localStorage.getItem('irminsul_last_workspace') || '.';
-  } catch {
-    return '.';
-  }
-})();
-
 export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [projectPath, setProjectPath] = useState<string>(DEFAULT_INITIAL_PATH);
+  const [projectPath, setProjectPath] = useState<string>('');
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [modules, setModules] = useState<ProjectModule[]>([]);
@@ -356,7 +348,25 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Load project AST from Flask
   const loadProject = useCallback(
     async (customPath?: string, forceRefresh = false) => {
-      const targetPath = customPath || projectPath;
+      const targetPath = customPath !== undefined ? customPath : projectPath;
+      if (!targetPath || !targetPath.trim()) {
+        setProjectPath('');
+        setNodes([]);
+        setEdges([]);
+        setModules([]);
+        setLayers({});
+        setDiagnostics(null);
+        setProjectMeta(null);
+        setSummary(null);
+        setSelectedNode(null);
+        setActiveCycles([]);
+        setDeadFunctions([]);
+        try {
+          localStorage.removeItem('irminsul_last_workspace');
+        } catch {}
+        return;
+      }
+
       setIsLoading(true);
       setError(null);
       sourceCache.current.clear();
@@ -403,7 +413,7 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   useEffect(() => {
-    loadProject();
+    // Clean boot: start empty. User opens a folder to begin.
   }, []);
 
   // Fetch node source & impact whenever selectedNode changes (with cache & debounce)

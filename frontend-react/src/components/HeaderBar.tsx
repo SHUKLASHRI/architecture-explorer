@@ -86,7 +86,8 @@ export const HeaderBar: React.FC = () => {
   }, []);
 
   const repoName = useMemo(() => {
-    return projectPath.split(/[\\/]/).filter(Boolean).pop() || 'project';
+    if (!projectPath) return 'No Folder Open';
+    return projectPath.split(/[\\/]/).filter(Boolean).pop() || 'Workspace';
   }, [projectPath]);
 
   const activeDocName = selectedNode ? selectedNode.name : 'Architecture Graph';
@@ -249,6 +250,22 @@ export const HeaderBar: React.FC = () => {
                 </div>
                 <span className="text-[10px] text-[#858585] font-mono">Ctrl+O</span>
               </button>
+
+              {projectPath ? (
+                <button
+                  onClick={() => {
+                    loadProject('');
+                    setActiveMenu(null);
+                  }}
+                  className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-[#094771] hover:text-[#ffffff] text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <FolderOpen size={13} className="text-[#858585]" />
+                    <span>Close Folder</span>
+                  </div>
+                  <span className="text-[10px] text-[#858585] font-mono">Ctrl+K F</span>
+                </button>
+              ) : null}
 
               {/* Recent projects */}
               <div className="border-t border-[#333333] my-1" />
@@ -713,8 +730,12 @@ export const HeaderBar: React.FC = () => {
             <span className="text-[#ffffff] font-medium">{repoName}</span>
             <span className="text-[#6e6e6e] mx-1">—</span>
             <span className="text-[#007acc] font-medium">Irminsul IDE</span>
-            <span className="text-[#6e6e6e] mx-1">—</span>
-            <span className="text-[#858585] font-mono text-[10px]">{activeDocName}</span>
+            {projectPath ? (
+              <>
+                <span className="text-[#6e6e6e] mx-1">—</span>
+                <span className="text-[#858585] font-mono text-[10px]">{activeDocName}</span>
+              </>
+            ) : null}
           </span>
         </button>
       </div>

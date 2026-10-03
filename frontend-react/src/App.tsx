@@ -71,7 +71,7 @@ const PyArchStudioApp: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setLeftPanelOpen, setRightPanelOpen, toggleBottomPanel, openSettings, minimizeAllPanels]);
 
-  const repoName = projectPath.split(/[\\/]/).filter(Boolean).pop() || 'project';
+  const repoName = projectPath ? (projectPath.split(/[\\/]/).filter(Boolean).pop() || 'Workspace') : 'No Folder Open';
 
   return (
     <div className="h-screen w-screen relative overflow-hidden bg-[#1e1e1e] text-[#cccccc] font-sans text-xs antialiased select-none flex flex-col">
