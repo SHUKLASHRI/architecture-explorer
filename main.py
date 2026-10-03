@@ -115,9 +115,19 @@ if __name__ == "__main__":
         js_api=api,
     )
 
+    icon_path = resource_path("icon.ico")
+    icon_arg = icon_path if os.path.isfile(icon_path) else None
+
+    # On Windows, register AppUserModelID for crisp taskbar and window icon
+    try:
+        import ctypes
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("shuklashri.irminsulide.1.0")
+    except Exception:
+        pass
+
     try:
         # Prefer modern Edge Chromium engine on Windows for maximum 120 FPS performance
-        webview.start(gui='edgechromium', debug=False)
+        webview.start(gui='edgechromium', debug=False, icon=icon_arg)
     except Exception:
-        webview.start(debug=False)
+        webview.start(debug=False, icon=icon_arg)
 
