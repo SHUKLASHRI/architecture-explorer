@@ -59,6 +59,67 @@ def health():
 
 
 # ---------------------------------------------------------------------------
+# Native OS Folder Chooser (Windows Explorer Folder Dialog)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/choose-folder", methods=["GET", "POST"])
+def api_choose_folder():
+    """Summon native Windows Explorer folder chooser dialog and return selected path."""
+    from concurrent.futures import ThreadPoolExecutor
+    data = request.get_json(silent=True) or {}
+    initial_dir = data.get("initial_dir", "")
+
+    def _show_dialog():
+        init = initial_dir if initial_dir and os.path.isdir(initial_dir) else os.getcwd()
+
+        # 1. Try Tkinter (native modern Windows IFileDialog directory browser)
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            p = filedialog.askdirectory(title="Select Python Project Folder - Irminsul IDE", initialdir=init)
+            root.destroy()
+            if p:
+                return p
+        except Exception:
+            pass
+
+        # 2. Try PowerShell Windows Forms FolderBrowserDialog
+        if sys.platform == "win32":
+            try:
+                import subprocess
+                ps_script = (
+                    "[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null; "
+                    "$f = New-Object System.Windows.Forms.FolderBrowserDialog; "
+                    "$f.Description = 'Select Python Project Folder - Irminsul IDE'; "
+                    "$f.ShowNewFolderButton = $true; "
+                    f"$f.SelectedPath = '{init}'; "
+                    "if ($f.ShowDialog() -eq 'OK') { Write-Output $f.SelectedPath }"
+                )
+                res = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script], capture_output=True, text=True, timeout=120)
+                out = res.stdout.strip()
+                if out and os.path.isdir(out):
+                    return out
+            except Exception:
+                pass
+
+        return ""
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_show_dialog)
+            chosen_path = future.result(timeout=180)
+
+        if chosen_path:
+            return jsonify({"success": True, "path": os.path.abspath(chosen_path)})
+        return jsonify({"success": False, "cancelled": True, "path": ""})
+    except Exception as exc:
+        return jsonify({"success": False, "error": str(exc), "path": ""}), 500
+
+
+# ---------------------------------------------------------------------------
 # Architecture analysis endpoints
 # ---------------------------------------------------------------------------
 

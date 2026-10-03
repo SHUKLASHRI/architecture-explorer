@@ -24,6 +24,7 @@ import {
   Terminal as TerminalIcon,
 } from 'lucide-react';
 import { IrminsulLogo } from './IrminsulLogo';
+import { promptNativeFolderChooser } from '../utils/nativeDialog';
 
 type MenuId = 'file' | 'edit' | 'selection' | 'view' | 'go' | 'run' | 'terminal' | 'help' | null;
 
@@ -94,23 +95,10 @@ export const HeaderBar: React.FC = () => {
 
   const handleOpenFolder = async () => {
     setActiveMenu(null);
-    const pyApi = (window as any).pywebview?.api;
-    if (pyApi && pyApi.open_folder_dialog) {
-      try {
-        const selected = await pyApi.open_folder_dialog();
-        if (selected) {
-          setProjectPath(selected);
-          await loadProject(selected);
-        }
-      } catch (err) {
-        console.error('Folder picker error:', err);
-      }
-    } else {
-      const path = prompt('Enter project directory path:', projectPath);
-      if (path) {
-        setProjectPath(path);
-        await loadProject(path);
-      }
+    const chosen = await promptNativeFolderChooser(projectPath);
+    if (chosen) {
+      setProjectPath(chosen);
+      await loadProject(chosen);
     }
   };
 

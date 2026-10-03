@@ -9,6 +9,7 @@ import {
   X,
   CheckCircle2,
 } from 'lucide-react';
+import { promptNativeFolderChooser } from '../utils/nativeDialog';
 
 export const WelcomeModal: React.FC = () => {
   const {
@@ -119,19 +120,10 @@ export const WelcomeModal: React.FC = () => {
 
                 <button
                   onClick={async () => {
-                    const pyApi = (window as any).pywebview?.api;
-                    if (pyApi && pyApi.open_folder_dialog) {
-                      const selected = await pyApi.open_folder_dialog();
-                      if (selected) {
-                        loadProject(selected);
-                        closeWelcome();
-                      }
-                    } else {
-                      const path = prompt('Enter project directory path:');
-                      if (path) {
-                        loadProject(path);
-                        closeWelcome();
-                      }
+                    const chosen = await promptNativeFolderChooser();
+                    if (chosen) {
+                      loadProject(chosen);
+                      closeWelcome();
                     }
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] text-left transition-colors group"
@@ -139,7 +131,7 @@ export const WelcomeModal: React.FC = () => {
                   <FolderOpen size={16} className="text-[#007acc] group-hover:scale-110 transition-transform" />
                   <div>
                     <div className="text-xs font-medium text-[#ffffff]">Open Folder...</div>
-                    <div className="text-[10px] text-[#858585]">Analyze any local Python project</div>
+                    <div className="text-[10px] text-[#858585]">Browse and select a Python project folder</div>
                   </div>
                 </button>
 

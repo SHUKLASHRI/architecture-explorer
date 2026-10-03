@@ -101,6 +101,10 @@ if __name__ == "__main__":
                 return result[0]
             return None
 
+        def choose_folder(self):
+            """Alias for open_folder_dialog."""
+            return self.open_folder_dialog()
+
         def minimize_window(self):
             """Minimize the native desktop window."""
             try:

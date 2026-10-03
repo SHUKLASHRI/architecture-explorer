@@ -17,6 +17,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { IrminsulLogo } from './IrminsulLogo';
+import { promptNativeFolderChooser } from '../utils/nativeDialog';
 
 /**
  * Robust adaptive cubic bezier calculation that anchors cables cleanly to
@@ -845,14 +846,8 @@ export const HeroCanvas: React.FC = () => {
               </p>
               <button
                 onClick={async () => {
-                  const pyApi = (window as any).pywebview?.api;
-                  if (pyApi?.choose_folder) {
-                    const chosen = await pyApi.choose_folder();
-                    if (chosen) loadProject(chosen);
-                  } else {
-                    const p = window.prompt('Enter path to Python workspace folder:', projectPath || '');
-                    if (p?.trim()) loadProject(p.trim());
-                  }
+                  const chosen = await promptNativeFolderChooser(projectPath);
+                  if (chosen) loadProject(chosen);
                 }}
                 className="mt-2 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-2 rounded-[3px] text-xs transition-colors flex items-center gap-2 shadow"
               >
