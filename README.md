@@ -1,5 +1,11 @@
 # Irminsul IDE — Python Architecture & Refactor Workbench
 
+[![Website](https://img.shields.io/badge/Live_Website-shuklashri.github.io%2Farchitecture--explorer-007acc?style=for-the-badge&logo=google-chrome&logoColor=white)](https://shuklashri.github.io/architecture-explorer/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-4ec9b0.svg?style=for-the-badge)](LICENSE)
+[![Release](https://img.shields.io/badge/Release-v1.0.0-cca700.svg?style=for-the-badge)](https://github.com/SHUKLASHRI/architecture-explorer/releases)
+
+🌐 **Official Website**: [https://shuklashri.github.io/architecture-explorer/](https://shuklashri.github.io/architecture-explorer/)
+
 Irminsul IDE is a desktop-grade architecture visualization and refactoring workbench for Python codebases. It performs deep, AST-based static analysis to map modules, symbols, call graphs, coupling metrics, and cyclomatic complexity into an interactive, infinite canvas with floating HUD panels.
 
 ![Irminsul IDE](https://raw.githubusercontent.com/SHUKLASHRI/architecture-explorer/main/frontend/screenshot.png)
