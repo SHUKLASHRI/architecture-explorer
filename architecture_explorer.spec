@@ -43,6 +43,7 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 import sys
 
 icon_file = 'icon.ico' if sys.platform == 'win32' else None
+version_file = 'file_version_info.txt' if (sys.platform == 'win32' and os.path.isfile('file_version_info.txt')) else None
 
 exe = EXE(
     pyz,
@@ -55,7 +56,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=(sys.platform == 'win32'),
+    upx=False,   # IMPORTANT: Disabled to eliminate Windows Defender / AV heuristic false positives
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,   # no console window
@@ -65,6 +66,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=icon_file,
+    version=version_file,
 )
 
 if sys.platform == 'darwin':

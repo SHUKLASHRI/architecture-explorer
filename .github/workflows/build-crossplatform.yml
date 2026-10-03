@@ -48,6 +48,8 @@ jobs:
           mkdir -p dmg_stage
           cp -R "dist/IrminsulIDE.app" dmg_stage/
           ln -s /Applications dmg_stage/Applications
+          # Ad-hoc sign bundle so Gatekeeper recognizes valid application structure
+          codesign --force --deep --sign - "dmg_stage/IrminsulIDE.app" || true
           hdiutil create -volname "Irminsul IDE" -srcfolder dmg_stage -ov -format UDZO "dist/IrminsulIDE-v1.0.0-macOS.dmg"
           ls -lh dist/
 

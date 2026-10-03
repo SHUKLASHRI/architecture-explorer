@@ -1,9 +1,9 @@
 """
-main.py — Desktop entry point for Irminsul IDE.
+main.py - Desktop entry point for Irminsul IDE.
 
 Starts the Flask API in a background daemon thread, then opens a native
 OS window via pywebview pointing at the local server. The user sees a
-normal desktop application window — no browser chrome, no address bar.
+normal desktop application window - no browser chrome, no address bar.
 """
 
 import threading
@@ -11,9 +11,26 @@ import time
 import sys
 import os
 
+# Fix Windows cp1252 / pythonw GUI encoding issues
+if sys.stdout is not None:
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+else:
+    sys.stdout = open(os.devnull, 'w', encoding='utf-8', errors='replace')
+
+if sys.stderr is not None:
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+else:
+    sys.stderr = open(os.devnull, 'w', encoding='utf-8', errors='replace')
+
 # When running as a PyInstaller bundle, resource paths need adjustment
 def resource_path(relative: str) -> str:
-    """Get absolute path to a resource — works for dev and PyInstaller .exe."""
+    """Get absolute path to a resource - works for dev and PyInstaller .exe."""
     if hasattr(sys, '_MEIPASS'):
         base = sys._MEIPASS
     else:
@@ -91,7 +108,7 @@ if __name__ == "__main__":
         print(f"ERROR: Flask server did not start on port {PORT} in time.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Irminsul IDE → http://127.0.0.1:{PORT}")
+    print(f"Irminsul IDE -> http://127.0.0.1:{PORT}")
 
     class DesktopApi:
         def open_folder_dialog(self):
@@ -187,9 +204,22 @@ if __name__ == "__main__":
 
     window.events.shown += apply_native_icon
 
-    try:
-        # Prefer modern Edge Chromium engine on Windows for maximum 120 FPS performance
-        webview.start(apply_native_icon, gui='edgechromium', debug=False, icon=icon_arg)
-    except Exception:
-        webview.start(apply_native_icon, debug=False, icon=icon_arg)
+    if sys.platform == "win32":
+        try:
+            # Prefer modern Edge Chromium engine on Windows for maximum 120 FPS performance
+            webview.start(apply_native_icon, gui='edgechromium', debug=False, icon=icon_arg)
+        except Exception:
+            webview.start(apply_native_icon, debug=False, icon=icon_arg)
+    elif sys.platform == "darwin":
+        # Native Cocoa WKWebView on macOS
+        webview.start(debug=False)
+    else:
+        # Linux (WebKitGTK)
+        try:
+            webview.start(debug=False, gui='gtk')
+        except Exception:
+            try:
+                webview.start(debug=False, gui='qt')
+            except Exception:
+                webview.start(debug=False)
 
