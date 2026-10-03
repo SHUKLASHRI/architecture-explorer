@@ -1,4 +1,4 @@
-"""Flask application providing HTTP APIs for Architecture Explorer."""
+"""Flask application providing HTTP APIs for Irminsul IDE."""
 
 from __future__ import annotations
 
@@ -284,5 +284,5 @@ def _invalidate_cache() -> None:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5173))
-    print(f"Architecture Explorer API -> http://127.0.0.1:{port}")
+    print(f"Irminsul IDE API -> http://127.0.0.1:{port}")
     app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)

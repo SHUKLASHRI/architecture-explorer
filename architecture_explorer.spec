@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec for Architecture Explorer
+# PyInstaller spec for Irminsul IDE
 # Build with: pyinstaller architecture_explorer.spec
 
 block_cipher = None
@@ -45,7 +45,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='ArchitectureExplorer',
+    name='IrminsulIDE',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

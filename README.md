@@ -1,8 +1,8 @@
-# PyArch Studio — Python Architecture & Refactor Workbench
+# Irminsul IDE — Python Architecture & Refactor Workbench
 
-PyArch Studio is a desktop-grade architecture visualization and refactoring workbench for Python codebases. It performs deep, AST-based static analysis to map modules, symbols, call graphs, coupling metrics, and cyclomatic complexity into an interactive, infinite canvas with floating HUD panels.
+Irminsul IDE is a desktop-grade architecture visualization and refactoring workbench for Python codebases. It performs deep, AST-based static analysis to map modules, symbols, call graphs, coupling metrics, and cyclomatic complexity into an interactive, infinite canvas with floating HUD panels.
 
-![PyArch Studio](https://raw.githubusercontent.com/SHUKLASHRI/architecture-explorer/main/frontend/screenshot.png)
+![Irminsul IDE](https://raw.githubusercontent.com/SHUKLASHRI/architecture-explorer/main/frontend/screenshot.png)
 
 ---
 

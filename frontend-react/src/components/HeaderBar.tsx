@@ -137,7 +137,7 @@ export const HeaderBar: React.FC = () => {
             <polyline points="8 6 2 12 8 18"></polyline>
           </svg>
           <span className="font-semibold text-xs text-[#ffffff] tracking-normal font-sans hidden sm:inline">
-            Architecture Explorer
+            Irminsul IDE
           </span>
         </div>
 

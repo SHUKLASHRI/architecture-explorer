@@ -1,5 +1,5 @@
 /**
- * PyArch Studio - TypeScript Types & Interfaces
+ * Irminsul IDE - TypeScript Types & Interfaces
  */
 
 export interface ParameterInfo {

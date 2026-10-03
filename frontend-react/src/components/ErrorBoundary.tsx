@@ -23,7 +23,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Architecture Explorer UI Error:', error, errorInfo);
+    console.error('Irminsul IDE UI Error:', error, errorInfo);
     this.setState({ errorInfo });
   }
 

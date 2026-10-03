@@ -1,4 +1,4 @@
-"""Unit and integration test suite for Architecture Explorer backend."""
+"""Unit and integration test suite for Irminsul IDE backend."""
 
 from __future__ import annotations
 

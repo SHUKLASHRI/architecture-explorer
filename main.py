@@ -1,5 +1,5 @@
 """
-main.py — Desktop entry point for Architecture Explorer.
+main.py — Desktop entry point for Irminsul IDE.
 
 Starts the Flask API in a background daemon thread, then opens a native
 OS window via pywebview pointing at the local server. The user sees a
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         print(f"ERROR: Flask server did not start on port {PORT} in time.", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Architecture Explorer → http://127.0.0.1:{PORT}")
+    print(f"Irminsul IDE → http://127.0.0.1:{PORT}")
 
     class DesktopApi:
         def open_folder_dialog(self):
@@ -105,7 +105,7 @@ if __name__ == "__main__":
 
     # Open native window (like Figma / VS Code desktop)
     window = webview.create_window(
-        title="Architecture Explorer",
+        title="Irminsul IDE",
         url=f"http://127.0.0.1:{PORT}",
         width=1440,
         height=900,
