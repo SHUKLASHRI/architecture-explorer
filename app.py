@@ -261,6 +261,127 @@ def source():
 
 
 # ---------------------------------------------------------------------------
+# File content inspection & editing
+# ---------------------------------------------------------------------------
+
+@app.route("/file/content")
+def file_content():
+    """
+    Return the full source content of a file.
+
+    Query params:
+      file — relative or absolute path
+    """
+    file_path = request.args.get("file", "")
+    if not file_path:
+        return jsonify({"error": "file parameter is required"}), 400
+
+    if not os.path.isabs(file_path):
+        base_dir = _cache.get("project_path")
+        if not base_dir:
+            try:
+                base_dir = _resolve_project_path("")
+            except Exception:
+                base_dir = os.path.abspath(os.getcwd())
+        cand = os.path.join(base_dir, file_path)
+        if os.path.isfile(cand):
+            file_path = cand
+        elif os.path.isfile(os.path.join(os.getcwd(), file_path)):
+            file_path = os.path.join(os.getcwd(), file_path)
+
+    if not os.path.isfile(file_path):
+        return jsonify({"error": f"File not found: {file_path}"}), 404
+
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        return jsonify({
+            "file": file_path,
+            "filename": os.path.basename(file_path),
+            "content": content,
+            "lines_count": len(content.splitlines()),
+        })
+    except IOError as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/file/save", methods=["POST"])
+def save_file():
+    """
+    Save edited content to a file, validate Python syntax, and refresh AST graph.
+
+    Body:
+      {
+        "file": "path/to/file.py",
+        "content": "new python content...",
+        "project_path": "..." (optional)
+      }
+    """
+    data = request.get_json(silent=True) or {}
+    file_path = data.get("file", "").strip()
+    content = data.get("content", "")
+    project_path = data.get("project_path", "").strip()
+
+    if not file_path:
+        return jsonify({"error": "file parameter is required"}), 400
+
+    # Resolve target file path
+    if not os.path.isabs(file_path):
+        base_dir = _cache.get("project_path")
+        if not base_dir:
+            try:
+                base_dir = _resolve_project_path(project_path)
+            except Exception:
+                base_dir = os.path.abspath(os.getcwd())
+        cand = os.path.join(base_dir, file_path)
+        if os.path.isfile(cand) or os.path.isdir(os.path.dirname(cand)):
+            file_path = cand
+
+    # Validate Python syntax if it's a python file
+    if file_path.endswith(".py"):
+        try:
+            import ast
+            ast.parse(content, filename=file_path)
+        except SyntaxError as syn_err:
+            return jsonify({
+                "error": f"Python SyntaxError on line {syn_err.lineno}: {syn_err.msg}",
+                "syntax_error": {
+                    "line": syn_err.lineno,
+                    "offset": syn_err.offset,
+                    "text": syn_err.text,
+                    "message": syn_err.msg,
+                }
+            }), 400
+
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+    except IOError as e:
+        return jsonify({"error": f"Failed to write file: {str(e)}"}), 500
+
+    # Invalidate AST cache and re-analyze project
+    resolved_proj = _cache.get("project_path")
+    if not resolved_proj:
+        try:
+            resolved_proj = _resolve_project_path(project_path)
+        except Exception:
+            resolved_proj = os.path.dirname(file_path)
+
+    _cache["result"] = None
+    try:
+        new_result = _get_result(resolved_proj)
+        project_map = new_result["project_map"]
+    except Exception as parse_err:
+        project_map = None
+
+    return jsonify({
+        "success": True,
+        "message": f"Saved {os.path.basename(file_path)} successfully",
+        "project_map": project_map,
+    })
+
+
+# ---------------------------------------------------------------------------
 # Analysis: circular dependencies
 # ---------------------------------------------------------------------------
 

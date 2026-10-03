@@ -103,6 +103,7 @@ interface ExplorerContextType {
   selectNodeById: (nodeId: string) => void;
   selectNode: (node: GraphNode | null) => void;
   handleRenameSuccess: (data: any) => void;
+  saveFile: (filePath: string, content: string) => Promise<{ success: boolean; error?: string; syntax_error?: any }>;
 }
 
 const ExplorerContext = createContext<ExplorerContextType | null>(null);
@@ -450,6 +451,41 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [loadProject, showToast]
   );
 
+  const saveFile = useCallback(
+    async (filePath: string, content: string) => {
+      try {
+        const res = await api.saveFileContent(filePath, content, projectPath);
+        if (res.project_map) {
+          setNodes(res.project_map.nodes || []);
+          setEdges(res.project_map.edges || []);
+          setModules(res.project_map.modules || []);
+          setLayers(res.project_map.layers || {});
+          setDiagnostics(res.project_map.diagnostics || null);
+          setSummary(res.project_map.summary || null);
+        }
+        sourceCache.current.clear();
+        impactCache.current.clear();
+        showToast({
+          message: res.message || 'File saved successfully',
+          type: 'success',
+        });
+        return { success: true };
+      } catch (err: any) {
+        const errorMsg = err.error || err.message || 'Failed to save file';
+        showToast({
+          message: errorMsg,
+          type: 'error',
+        });
+        return {
+          success: false,
+          error: errorMsg,
+          syntax_error: err.syntax_error,
+        };
+      }
+    },
+    [projectPath, showToast]
+  );
+
   return (
     <ExplorerContext.Provider
       value={{
@@ -535,6 +571,7 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         selectNodeById,
         selectNode: setSelectedNode,
         handleRenameSuccess,
+        saveFile,
       }}
     >
       {children}

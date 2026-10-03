@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useExplorer } from '../context/ExplorerContext';
+import * as api from '../api/client';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
 import {
-  Terminal,
   Crosshair,
   Edit,
   X,
@@ -16,7 +16,11 @@ import {
   AlertTriangle,
   ShieldAlert,
   RotateCcw,
+  Code,
+  Save,
+  Maximize2,
 } from 'lucide-react';
+import { CodeEditorModal } from './CodeEditorModal';
 
 export const InspectorPanel: React.FC = () => {
   const {
@@ -36,9 +40,22 @@ export const InspectorPanel: React.FC = () => {
     setIsEditorFocused,
     nodes,
     activeCycles,
+    saveFile,
   } = useExplorer();
 
   const [copied, setCopied] = useState(false);
+  const [isFullEditorOpen, setIsFullEditorOpen] = useState(false);
+
+  // Inline editing state
+  const [inlineEditMode, setInlineEditMode] = useState(false);
+  const [inlineContent, setInlineContent] = useState('');
+  const [inlineOriginalContent, setInlineOriginalContent] = useState('');
+  const [isLoadingInline, setIsLoadingInline] = useState(false);
+  const [isSavingInline, setIsSavingInline] = useState(false);
+  const [inlineSyntaxError, setInlineSyntaxError] = useState<{ line: number; message: string } | null>(null);
+
+  const inlineTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const inlineLineGutterRef = useRef<HTMLDivElement>(null);
 
   const isUnfolded = rightPanelOpen || rightPanelHovered;
 
@@ -87,25 +104,93 @@ export const InspectorPanel: React.FC = () => {
     !selectedNode.name.startsWith('test_') &&
     selectedNode.kind !== 'class';
 
-  // 3. Circular Dependency (Combat Confirmation Bias: "No circular loops")
+  // 3. Hidden Circular Dependency membership
   const cycleInvolved = useMemo(() => {
-    if (!selectedNode) return null;
-    return activeCycles.find(
-      (cycle) => cycle.includes(selectedNode.id) || cycle.includes(selectedNode.name)
-    );
-  }, [activeCycles, selectedNode]);
+    if (!selectedNode || !activeCycles) return null;
+    return activeCycles.find((c) => c.includes(selectedNode.id) || c.includes(selectedNode.name));
+  }, [selectedNode, activeCycles]);
 
-  // 4. Affected files across blast radius
+  // 4. Downstream blast radius files count
   const blastRadiusFiles = useMemo(() => {
-    const fileSet = new Set<string>();
+    if (!transitiveCallers.length) return [];
+    const files = new Set<string>();
     transitiveCallers.forEach((cId) => {
-      const cNode = nodes.find((n) => n.id === cId || n.name === cId);
-      if (cNode?.filename) fileSet.add(cNode.filename);
+      const callerNode = nodes.find((n) => n.id === cId || n.name === cId);
+      if (callerNode?.filename) files.add(callerNode.filename);
     });
-    return Array.from(fileSet);
+    return Array.from(files);
   }, [transitiveCallers, nodes]);
 
-  // MINIMIZED STATE: Sleek VS Code docked tab pill on the right
+  // Load inline full file content when requested
+  const loadInlineContent = useCallback(() => {
+    if (!selectedNode?.file) return;
+    setIsLoadingInline(true);
+    setInlineSyntaxError(null);
+    api
+      .fetchFileContent(selectedNode.file)
+      .then((data) => {
+        setInlineContent(data.content);
+        setInlineOriginalContent(data.content);
+        setIsLoadingInline(false);
+      })
+      .catch(() => {
+        setIsLoadingInline(false);
+      });
+  }, [selectedNode?.file]);
+
+  // Reset or reload inline content when selected node changes
+  useEffect(() => {
+    setInlineContent('');
+    setInlineOriginalContent('');
+    setInlineSyntaxError(null);
+    if (inlineEditMode && selectedNode?.file) {
+      loadInlineContent();
+    }
+  }, [selectedNode?.id, inlineEditMode, loadInlineContent, selectedNode?.file]);
+
+  // Save inline edits
+  const handleSaveInline = async () => {
+    if (!selectedNode?.file || isSavingInline) return;
+    setIsSavingInline(true);
+    setInlineSyntaxError(null);
+
+    const res = await saveFile(selectedNode.file, inlineContent);
+    setIsSavingInline(false);
+
+    if (res.success) {
+      setInlineOriginalContent(inlineContent);
+    } else if (res.syntax_error) {
+      setInlineSyntaxError({
+        line: res.syntax_error.line,
+        message: res.syntax_error.message,
+      });
+    }
+  };
+
+  // Keyboard shortcut: Tab indentation and Ctrl+S inside inline editor
+  const handleInlineKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      handleSaveInline();
+      return;
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const start = e.currentTarget.selectionStart;
+      const end = e.currentTarget.selectionEnd;
+      const tabSpaces = '    ';
+      const newContent = inlineContent.substring(0, start) + tabSpaces + inlineContent.substring(end);
+      setInlineContent(newContent);
+      setTimeout(() => {
+        if (inlineTextareaRef.current) {
+          inlineTextareaRef.current.selectionStart = start + tabSpaces.length;
+          inlineTextareaRef.current.selectionEnd = start + tabSpaces.length;
+        }
+      }, 0);
+    }
+  };
+
+  // FOLDED PEEK STATE: VS Code slim chip
   if (!isUnfolded) {
     return (
       <div
@@ -114,8 +199,8 @@ export const InspectorPanel: React.FC = () => {
         className="absolute right-3 top-14 z-40 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] px-2.5 py-1.5 shadow-lg cursor-pointer transition-colors flex items-center gap-2"
         title="Hover to peek, click to pin open (Ctrl+J)"
       >
-        <Terminal size={14} className="text-[#007acc]" />
-        <span className="font-mono text-xs font-medium text-[#cccccc] truncate max-w-[130px]">
+        <Crosshair size={14} className="text-[#007acc]" />
+        <span className="font-mono text-xs font-medium text-[#cccccc] tracking-normal">
           {selectedNode ? selectedNode.name : 'Inspector'}
         </span>
       </div>
@@ -134,7 +219,7 @@ export const InspectorPanel: React.FC = () => {
         <Crosshair size={28} className="text-[#858585] mb-2" />
         <div className="text-[#ffffff] font-medium text-xs mb-1">Select a Symbol</div>
         <p className="text-[11px] text-[#858585] max-w-[210px] leading-relaxed">
-          Click on any node in the architecture graph to inspect callers, callees, metrics, and source code.
+          Click on any node in the architecture graph to inspect callers, callees, metrics, and edit source code.
         </p>
       </aside>
     );
@@ -143,6 +228,7 @@ export const InspectorPanel: React.FC = () => {
   const isClass = selectedNode.kind === 'class';
   const isMethod = Boolean(selectedNode.class_owner);
   const callers = directCallers;
+  const isInlineDirty = inlineContent !== inlineOriginalContent;
 
   const handleCopySource = () => {
     if (!sourceSnippet?.lines) return;
@@ -163,399 +249,468 @@ export const InspectorPanel: React.FC = () => {
     }
   };
 
+  const inlineTotalLines = inlineContent.split('\n').length;
+
   // EXPANDED STATE: VS Code Inspector Workbench Panel
   return (
-    <aside
-      style={{ width: `${inspectorWidth}px` }}
-      onMouseEnter={() => setRightPanelHovered(true)}
-      onMouseLeave={() => setRightPanelHovered(false)}
-      className="absolute right-3 top-14 bottom-6 bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-2xl z-40 flex flex-col justify-between overflow-hidden select-none transition-all duration-200"
-      id="inspectorPanel"
-    >
-      {/* Header Bar */}
-      <div className="h-9 px-3 border-b border-[#3e3e42] flex items-center justify-between bg-[#2d2d2d]">
-        <div className="flex items-center space-x-2 truncate">
-          <span
-            className={`text-[9px] font-mono px-1.5 py-0.2 rounded-[2px] font-semibold uppercase tracking-wider ${
-              isClass
-                ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
-                : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
-            }`}
-          >
-            {isClass ? 'Class' : isMethod ? 'Method' : 'Function'}
-          </span>
-          <span
-            className={`font-mono text-xs font-semibold truncate ${
-              isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'
-            }`}
-          >
-            {selectedNode.name}
-          </span>
-        </div>
-
-        <div className="flex items-center space-x-1">
-          {/* Refactor shortcut button */}
-          <button
-            onClick={() => openRenameModal(selectedNode)}
-            className="px-1.5 py-0.5 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1 micro-tap"
-            title="Safe Refactor / Rename (F2)"
-          >
-            <Edit size={11} />
-            <span>F2</span>
-          </button>
-
-          {/* Close / Fold button */}
-          <button
-            onClick={() => {
-              setRightPanelOpen(false);
-              setRightPanelHovered(false);
-            }}
-            className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] micro-tap flex items-center justify-center"
-            title="Close Inspector (Escape)"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      </div>
-
-      {/* Main Scrollable Content */}
-      <div className="flex-1 overflow-y-auto code-scroll p-3 space-y-3">
-        {/* Symbol Declaration Card */}
-        <div className="p-2.5 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] space-y-2">
-          <div className="flex items-center justify-between flex-wrap gap-1">
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {selectedNode.tier && (
-                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-[2px] bg-[#252526] text-[#858585] border border-[#3e3e42] uppercase tracking-wider font-semibold">
-                  {selectedNode.tier}
-                </span>
-              )}
-              {selectedNode.cyclomatic_complexity !== undefined && selectedNode.cyclomatic_complexity !== null && (
-                <span
-                  className={`text-[9px] font-mono px-1.5 py-0.2 rounded-[2px] font-semibold border ${
-                    selectedNode.complexity_rating === 'low'
-                      ? 'bg-[#203330] text-[#4ec9b0] border-[#2a4e48]'
-                      : selectedNode.complexity_rating === 'moderate'
-                      ? 'bg-[#333020] text-[#cca700] border-[#4d4a2a]'
-                      : 'bg-[#332020] text-[#f14c4c] border-[#4a2a2a]'
-                  }`}
-                  title={`McCabe Cyclomatic Complexity: ${selectedNode.cyclomatic_complexity} (${selectedNode.complexity_rating || 'evaluated'})`}
-                >
-                  CC: {selectedNode.cyclomatic_complexity} {selectedNode.complexity_rating}
-                </span>
-              )}
-            </div>
-
-            <span className="text-[10px] font-mono text-[#858585]">
-              L{selectedNode.line}{selectedNode.end_line ? `–L${selectedNode.end_line}` : ''}
-              {selectedNode.loc ? ` (${selectedNode.loc} lines)` : ''}
+    <>
+      <aside
+        style={{ width: `${inspectorWidth}px` }}
+        onMouseEnter={() => setRightPanelHovered(true)}
+        onMouseLeave={() => setRightPanelHovered(false)}
+        className="absolute right-3 top-14 bottom-6 bg-[#252526] border border-[#3e3e42] rounded-[3px] shadow-2xl z-40 flex flex-col justify-between overflow-hidden select-none transition-all duration-200"
+        id="inspectorPanel"
+      >
+        {/* Header Bar */}
+        <div className="h-9 px-3 border-b border-[#3e3e42] flex items-center justify-between bg-[#2d2d2d]">
+          <div className="flex items-center space-x-2 truncate">
+            <span
+              className={`text-[9px] font-mono px-1.5 py-0.2 rounded-[2px] font-semibold uppercase tracking-wider ${
+                isClass
+                  ? 'bg-[#203330] text-[#4ec9b0] border border-[#2a4e48]'
+                  : 'bg-[#333220] text-[#dcdcaa] border border-[#4d4a2a]'
+              }`}
+            >
+              {isClass ? 'Class' : isMethod ? 'Method' : 'Function'}
+            </span>
+            <span
+              className={`font-mono text-xs font-semibold truncate ${
+                isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'
+              }`}
+            >
+              {selectedNode.name}
             </span>
           </div>
 
-          {/* Decorators */}
-          {selectedNode.decorators && selectedNode.decorators.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {selectedNode.decorators.map((dec, idx) => (
-                <span
-                  key={idx}
-                  className="text-[10px] font-mono text-[#c586c0] bg-[#2d222d] border border-[#4a2a4a] px-1.5 py-0.2 rounded-[2px]"
-                >
-                  {dec}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="flex items-center space-x-1.5">
+            {/* Quick Edit Code button */}
+            <button
+              onClick={() => setIsFullEditorOpen(true)}
+              className="px-2 py-0.5 bg-[#094771] hover:bg-[#007acc] text-white rounded-[2px] text-[10px] font-mono flex items-center gap-1 micro-tap border border-[#007acc]"
+              title="Open Full Code Editor (Ctrl+S to save)"
+            >
+              <Code size={11} />
+              <span>Edit Code</span>
+            </button>
 
-          {/* Full Signature */}
-          <div className="font-mono text-xs text-[#cccccc] bg-[#181818] p-2 rounded-[2px] border border-[#2d2d2d] overflow-x-auto leading-relaxed">
-            {selectedNode.signature ? (
-              <span>{selectedNode.signature}</span>
-            ) : (
-              <>
-                <span className="text-[#569cd6]">
-                  {selectedNode.is_async ? 'async def ' : isClass ? 'class ' : 'def '}
-                </span>
-                <span className={`font-semibold ${isClass ? 'text-[#4ec9b0]' : 'text-[#dcdcaa]'}`}>
-                  {selectedNode.name}
-                </span>
-                <span className="text-[#cccccc]">
-                  ({Array.isArray(selectedNode.args) ? selectedNode.args.join(', ') : ''})
-                </span>
-                {selectedNode.return_type && (
-                  <span className="text-[#4ec9b0]"> -&gt; {selectedNode.return_type}</span>
-                )}
-              </>
-            )}
-          </div>
+            {/* Refactor shortcut button */}
+            <button
+              onClick={() => openRenameModal(selectedNode)}
+              className="px-1.5 py-0.5 bg-[#333333] hover:bg-[#3e3e42] border border-[#3e3e42] rounded-[2px] text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] flex items-center gap-1 micro-tap"
+              title="Safe Refactor / Rename (F2)"
+            >
+              <Edit size={11} />
+              <span>F2</span>
+            </button>
 
-          {/* Docstring */}
-          {selectedNode.docstring && (
-            <div className="p-2 bg-[#181818] border border-[#2d2d2d] rounded-[2px] text-[11px] font-mono text-[#6a9955]">
-              <div className="text-[9px] text-[#858585] font-sans uppercase tracking-wider mb-1 font-semibold">
-                Docstring
-              </div>
-              <p className="italic leading-relaxed whitespace-pre-wrap">{selectedNode.docstring}</p>
-            </div>
-          )}
-
-          {/* Parameters Detail */}
-          {selectedNode.parameters && selectedNode.parameters.length > 0 && (
-            <div className="space-y-1 pt-1">
-              <div className="text-[9px] font-mono text-[#858585] uppercase tracking-wider font-semibold">
-                Parameters ({selectedNode.parameters.length})
-              </div>
-              <div className="space-y-1 max-h-28 overflow-y-auto tree-scroll">
-                {selectedNode.parameters.map((p, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between text-[11px] font-mono bg-[#181818] px-2 py-0.5 rounded-[2px] border border-[#2d2d2d]"
-                  >
-                    <span className="text-[#9cdcfe] font-medium">{p.name}</span>
-                    <div className="flex items-center gap-1.5">
-                      {p.type && <span className="text-[#4ec9b0] text-[10px]">{p.type}</span>}
-                      {p.default && (
-                        <span className="text-[#858585] text-[10px]">= {p.default}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* File location */}
-          <div className="text-[10px] font-mono text-[#858585] flex items-center gap-1.5 truncate pt-1 border-t border-[#2d2d2d]">
-            <FileCode size={13} className="text-[#858585] flex-shrink-0" />
-            <span className="truncate">{selectedNode.rel_path || selectedNode.file}</span>
+            {/* Close / Fold button */}
+            <button
+              onClick={() => {
+                setRightPanelOpen(false);
+                setRightPanelHovered(false);
+              }}
+              className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] micro-tap flex items-center justify-center"
+              title="Close Inspector (Escape)"
+            >
+              <X size={14} />
+            </button>
           </div>
         </div>
 
-        {/* REALITY CHECK (Combats Confirmation Bias) */}
-        <div className="p-2.5 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] space-y-2">
-          <div className="flex items-center justify-between text-[11px] font-mono font-semibold text-[#cccccc]">
-            <div className="flex items-center gap-1.5">
-              <ShieldAlert
-                size={14}
-                className={
-                  layerViolations.length > 0 || isOrphan || cycleInvolved
-                    ? 'text-[#cca700]'
-                    : 'text-[#4ec9b0]'
-                }
-              />
-              <span>Reality Check</span>
-            </div>
-            <span className="text-[9px] text-[#858585] uppercase tracking-wider">
-              Objective Telemetry
-            </span>
-          </div>
-
-          <div className="space-y-1.5 text-[10px] font-mono">
-            {/* Transitive Blast Radius (Countering "It only affects this file") */}
-            <div className="p-1.5 rounded-[2px] bg-[#181818] border border-[#2d2d2d] flex items-center justify-between">
-              <span className="text-[#858585]">Blast Radius:</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[#cccccc] font-medium">{directCallers.length} direct</span>
-                {hiddenCallersCount > 0 ? (
-                  <span
-                    className="text-[#cca700] bg-[#332a15] px-1 rounded-[1px] border border-[#4d4020]"
-                    title={`${hiddenCallersCount} indirect downstream callers affected across ${blastRadiusFiles.length} file(s)`}
-                  >
-                    +{hiddenCallersCount} hidden indirect ({blastRadiusFiles.length} file{blastRadiusFiles.length !== 1 ? 's' : ''})
-                  </span>
-                ) : (
-                  <span className="text-[#4ec9b0]">Isolated</span>
-                )}
-              </div>
-            </div>
-
-            {/* Layer Inversion / Boundary Check (Countering "Code is cleanly layered") */}
-            {layerViolations.length > 0 ? (
-              <div className="p-1.5 rounded-[2px] bg-[#332a15] border border-[#cca700]/50 text-[#e0d6b5] space-y-0.5">
-                <div className="flex items-center gap-1 text-[#cca700] font-semibold">
-                  <AlertTriangle size={12} />
-                  <span>Layer Boundary Leak</span>
-                </div>
-                {layerViolations.map((v, i) => (
-                  <div key={i} className="text-[10px] text-[#cccccc]">
-                    • {v.reason} (<span className="text-[#dcdcaa]">{v.callee}</span>)
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="p-1.5 rounded-[2px] bg-[#181818] border border-[#2d2d2d] flex items-center justify-between text-[#858585]">
-                <span>Layer Integrity:</span>
-                <span className="text-[#4ec9b0]">Clean Layering</span>
-              </div>
-            )}
-
-            {/* Circular Dependency Loop */}
-            {cycleInvolved && (
-              <div className="p-1.5 rounded-[2px] bg-[#332020] border border-[#f14c4c]/40 text-[#f14c4c] flex items-center gap-1.5">
-                <RotateCcw size={12} className="flex-shrink-0" />
-                <span className="truncate">Circular Chain: {cycleInvolved.join(' ⇄ ')}</span>
-              </div>
-            )}
-
-            {/* Orphan Code Alert (Countering "Everything here is used") */}
-            {isOrphan && (
-              <div className="p-1.5 rounded-[2px] bg-[#2d2815] border border-[#cca700]/40 text-[#cca700] flex items-center gap-1.5">
-                <AlertCircle size={12} className="flex-shrink-0" />
-                <span>0 Callers in Project (Potential Dead Code)</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Call Graph Connections */}
-        <div className="grid grid-cols-2 gap-2">
-          {/* Callers */}
-          <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
-            <div className="text-[10px] font-mono text-[#858585] font-semibold mb-1 flex items-center justify-between">
-              <span>Callers ({callers.length})</span>
-              <ArrowDownLeft size={13} className="text-[#858585]" />
-            </div>
-            {callers.length === 0 ? (
-              <div className="text-[10px] font-mono text-[#6e7681] italic">No incoming calls</div>
-            ) : (
-              <div className="space-y-0.5 max-h-24 overflow-y-auto tree-scroll">
-                {callers.map((c) => (
-                  <div
-                    key={c}
-                    onClick={() => selectNodeById(c)}
-                    className="text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors"
-                  >
-                    ← {c}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Callees */}
-          <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
-            <div className="text-[10px] font-mono text-[#858585] font-semibold mb-1 flex items-center justify-between">
-              <span>Calls ({callees.length})</span>
-              <ArrowUpRight size={13} className="text-[#858585]" />
-            </div>
-            {callees.length === 0 ? (
-              <div className="text-[10px] font-mono text-[#6e7681] italic">No outgoing calls</div>
-            ) : (
-              <div className="space-y-0.5 max-h-24 overflow-y-auto tree-scroll">
-                {callees.map((c) => (
-                  <div
-                    key={c}
-                    onClick={() => selectNodeById(c)}
-                    className="text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors"
-                  >
-                    → {c}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Source Code Viewer (VS Code Editor View) */}
-        <div
-          className="border border-[#3e3e42] rounded-[2px] overflow-hidden bg-[#1e1e1e]"
-          onMouseEnter={() => setIsEditorFocused(true)}
-          onMouseLeave={() => setIsEditorFocused(false)}
-        >
-          {/* Editor Header Tab */}
-          <div className="h-7 px-2.5 bg-[#2d2d2d] border-b border-[#3e3e42] flex items-center justify-between">
-            <div className="flex items-center space-x-1.5 truncate">
-              <FileCode size={13} className="text-[#007acc] flex-shrink-0" />
-              <span className="text-[11px] font-mono text-[#cccccc] font-medium truncate">
-                {selectedNode.filename}
+        {/* Main Scrollable Content */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-3.5 panel-scroll">
+          {/* Metadata Card */}
+          <div className="p-2.5 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-mono border-b border-[#2d2d2d] pb-1.5">
+              <span className="text-[#858585]">Location</span>
+              <span className="text-[#cccccc] truncate max-w-[200px]" title={selectedNode.file}>
+                {selectedNode.filename}:{selectedNode.line}
               </span>
             </div>
 
-            <button
-              onClick={handleCopySource}
-              className="px-1.5 py-0.2 rounded-[2px] text-[10px] font-mono text-[#858585] hover:text-[#cccccc] hover:bg-[#383838] transition-colors flex items-center gap-1"
-              title="Copy snippet"
-            >
-              {copied ? <Check size={12} /> : <Copy size={12} />}
-              <span>{copied ? 'Copied' : 'Copy'}</span>
-            </button>
+            {selectedNode.tier && (
+              <div className="flex items-center justify-between text-[11px] font-mono border-b border-[#2d2d2d] pb-1.5">
+                <span className="text-[#858585]">Tier Layer</span>
+                <span className="text-[#4ec9b0] uppercase font-bold tracking-wider text-[10px] bg-[#1a2d27] px-1.5 py-0.2 rounded-[2px] border border-[#2d5248]">
+                  {selectedNode.tier}
+                </span>
+              </div>
+            )}
+
+            {/* Metrics */}
+            <div className="grid grid-cols-2 gap-2 pt-0.5 text-center">
+              <div className="p-1.5 bg-[#252526] rounded-[2px] border border-[#2d2d2d]">
+                <div className="text-[10px] text-[#858585] font-mono uppercase">Complexity</div>
+                <div
+                  className={`text-sm font-mono font-bold ${
+                    (selectedNode.cyclomatic_complexity || 1) > 10
+                      ? 'text-[#f14c4c]'
+                      : (selectedNode.cyclomatic_complexity || 1) > 5
+                      ? 'text-[#cca700]'
+                      : 'text-[#4ec9b0]'
+                  }`}
+                >
+                  {selectedNode.cyclomatic_complexity || 1}
+                </div>
+              </div>
+
+              <div className="p-1.5 bg-[#252526] rounded-[2px] border border-[#2d2d2d]">
+                <div className="text-[10px] text-[#858585] font-mono uppercase">Params / Args</div>
+                <div className="text-sm font-mono font-bold text-[#cccccc]">
+                  {selectedNode.parameters ? selectedNode.parameters.length : 0}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Editor Code Area */}
-          <div className="bg-[#1e1e1e] p-2 max-h-72 overflow-auto code-scroll text-[11px] font-mono">
-            {isLoadingSource ? (
-              <div className="py-8 flex flex-col items-center justify-center gap-2 text-[#858585] font-mono text-xs">
-                <div className="w-4 h-4 border-2 border-[#007acc] border-t-transparent rounded-full animate-spin" />
-                <span>Loading source snippet...</span>
+          {/* REALITY CHECK CRITIQUE (Combats Confirmation Bias) */}
+          <div className="p-2.5 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px] space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-mono text-[#cccccc] font-semibold border-b border-[#2d2d2d] pb-1">
+              <div className="flex items-center gap-1.5">
+                <ShieldAlert size={13} className="text-[#cca700]" />
+                <span>Architecture Diagnostics</span>
               </div>
-            ) : sourceError ? (
-              <div className="py-4 px-3 bg-[#2b2020] border border-[#f14c4c]/40 rounded-[2px] text-center space-y-2">
-                <div className="text-[11px] text-[#f14c4c] font-semibold flex items-center justify-center gap-1.5">
-                  <AlertCircle size={14} />
-                  <span>Source preview unavailable</span>
+            </div>
+
+            <div className="space-y-1.5 text-[10px] font-mono">
+              {/* Transitive Blast Radius (Countering "It only affects this file") */}
+              <div className="p-1.5 rounded-[2px] bg-[#181818] border border-[#2d2d2d] flex items-center justify-between">
+                <span className="text-[#858585]">Blast Radius:</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#cccccc] font-medium">{directCallers.length} direct</span>
+                  {hiddenCallersCount > 0 ? (
+                    <span
+                      className="text-[#cca700] bg-[#332a15] px-1 rounded-[1px] border border-[#4d4020]"
+                      title={`${hiddenCallersCount} indirect downstream callers affected across ${blastRadiusFiles.length} file(s)`}
+                    >
+                      +{hiddenCallersCount} hidden indirect ({blastRadiusFiles.length} file{blastRadiusFiles.length !== 1 ? 's' : ''})
+                    </span>
+                  ) : (
+                    <span className="text-[#4ec9b0]">Isolated</span>
+                  )}
                 </div>
-                <p className="text-[10px] text-[#858585]">{sourceError}</p>
+              </div>
+
+              {/* Layer Inversion / Boundary Check (Countering "Code is cleanly layered") */}
+              {layerViolations.length > 0 ? (
+                <div className="p-1.5 rounded-[2px] bg-[#332a15] border border-[#cca700]/50 text-[#e0d6b5] space-y-0.5">
+                  <div className="flex items-center gap-1 text-[#cca700] font-semibold">
+                    <AlertTriangle size={12} />
+                    <span>Layer Boundary Leak</span>
+                  </div>
+                  {layerViolations.map((v, i) => (
+                    <div key={i} className="text-[10px] text-[#cccccc]">
+                      • {v.reason} (<span className="text-[#dcdcaa]">{v.callee}</span>)
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-1.5 rounded-[2px] bg-[#181818] border border-[#2d2d2d] flex items-center justify-between text-[#858585]">
+                  <span>Layer Integrity:</span>
+                  <span className="text-[#4ec9b0]">Clean Layering</span>
+                </div>
+              )}
+
+              {/* Circular Dependency Loop */}
+              {cycleInvolved && (
+                <div className="p-1.5 rounded-[2px] bg-[#332020] border border-[#f14c4c]/40 text-[#f14c4c] flex items-center gap-1.5">
+                  <RotateCcw size={12} className="flex-shrink-0" />
+                  <span className="truncate">Circular Chain: {cycleInvolved.join(' ⇄ ')}</span>
+                </div>
+              )}
+
+              {/* Orphan Code Alert (Countering "Everything here is used") */}
+              {isOrphan && (
+                <div className="p-1.5 rounded-[2px] bg-[#2d2815] border border-[#cca700]/40 text-[#cca700] flex items-center gap-1.5">
+                  <AlertCircle size={12} className="flex-shrink-0" />
+                  <span>0 Callers in Project (Potential Dead Code)</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Call Graph Connections */}
+          <div className="grid grid-cols-2 gap-2">
+            {/* Callers */}
+            <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
+              <div className="text-[10px] font-mono text-[#858585] font-semibold mb-1 flex items-center justify-between">
+                <span>Callers ({callers.length})</span>
+                <ArrowDownLeft size={13} className="text-[#858585]" />
+              </div>
+              {callers.length === 0 ? (
+                <div className="text-[10px] font-mono text-[#6e7681] italic">No incoming calls</div>
+              ) : (
+                <div className="space-y-0.5 max-h-24 overflow-y-auto tree-scroll">
+                  {callers.map((c) => (
+                    <div
+                      key={c}
+                      onClick={() => selectNodeById(c)}
+                      className="text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors"
+                    >
+                      ← {c}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Callees */}
+            <div className="p-2 bg-[#1e1e1e] border border-[#3e3e42] rounded-[2px]">
+              <div className="text-[10px] font-mono text-[#858585] font-semibold mb-1 flex items-center justify-between">
+                <span>Calls ({callees.length})</span>
+                <ArrowUpRight size={13} className="text-[#858585]" />
+              </div>
+              {callees.length === 0 ? (
+                <div className="text-[10px] font-mono text-[#6e7681] italic">No outgoing calls</div>
+              ) : (
+                <div className="space-y-0.5 max-h-24 overflow-y-auto tree-scroll">
+                  {callees.map((c) => (
+                    <div
+                      key={c}
+                      onClick={() => selectNodeById(c)}
+                      className="text-[10px] font-mono text-[#cccccc] hover:text-[#ffffff] hover:bg-[#2a2d2e] px-1.5 py-0.5 rounded-[2px] cursor-pointer truncate transition-colors"
+                    >
+                      → {c}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Interactive Source Code Viewer & Editor (VS Code Style) */}
+          <div
+            className="border border-[#3e3e42] rounded-[2px] overflow-hidden bg-[#1e1e1e]"
+            onMouseEnter={() => setIsEditorFocused(true)}
+            onMouseLeave={() => setIsEditorFocused(false)}
+          >
+            {/* Editor Header Tab */}
+            <div className="h-7 px-2.5 bg-[#2d2d2d] border-b border-[#3e3e42] flex items-center justify-between">
+              <div className="flex items-center space-x-1.5 truncate">
+                <FileCode size={13} className="text-[#007acc] flex-shrink-0" />
+                <span className="text-[11px] font-mono text-[#cccccc] font-medium truncate">
+                  {selectedNode.filename}
+                </span>
+                {inlineEditMode && isInlineDirty && (
+                  <span className="w-2 h-2 rounded-full bg-[#007acc] animate-pulse flex-shrink-0" title="Unsaved changes" />
+                )}
+              </div>
+
+              <div className="flex items-center space-x-1.5">
+                {/* View / Edit Mode Switcher */}
+                <div className="flex items-center bg-[#1e1e1e] p-0.5 rounded-[2px] border border-[#3e3e42] text-[10px] font-mono">
+                  <button
+                    onClick={() => setInlineEditMode(false)}
+                    className={`px-1.5 py-0.2 rounded-[1px] micro-tap ${
+                      !inlineEditMode ? 'bg-[#094771] text-white font-medium' : 'text-[#858585] hover:text-[#cccccc]'
+                    }`}
+                    title="Read-only syntax preview"
+                  >
+                    View
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInlineEditMode(true);
+                      if (!inlineContent) {
+                        loadInlineContent();
+                      }
+                    }}
+                    className={`px-1.5 py-0.2 rounded-[1px] micro-tap ${
+                      inlineEditMode ? 'bg-[#094771] text-white font-medium' : 'text-[#858585] hover:text-[#cccccc]'
+                    }`}
+                    title="Inline Code Editor"
+                  >
+                    Edit
+                  </button>
+                </div>
+
+                {/* Inline Save Button (Only in Edit mode) */}
+                {inlineEditMode && (
+                  <button
+                    onClick={handleSaveInline}
+                    disabled={!isInlineDirty || isSavingInline}
+                    className={`px-2 py-0.2 rounded-[2px] text-[10px] font-mono flex items-center gap-1 micro-tap border ${
+                      isInlineDirty
+                        ? 'bg-[#007acc] hover:bg-[#0098ff] text-white border-[#007acc]'
+                        : 'bg-[#252526] text-[#6e7681] border-[#3e3e42] cursor-not-allowed'
+                    }`}
+                    title="Save changes to disk (Ctrl+S)"
+                  >
+                    <Save size={11} />
+                    <span>{isSavingInline ? '...' : 'Save'}</span>
+                  </button>
+                )}
+
+                {/* Copy snippet button (Only in View mode) */}
+                {!inlineEditMode && (
+                  <button
+                    onClick={handleCopySource}
+                    className="px-1.5 py-0.2 rounded-[2px] text-[10px] font-mono text-[#858585] hover:text-[#cccccc] hover:bg-[#383838] transition-colors flex items-center gap-1"
+                    title="Copy snippet"
+                  >
+                    {copied ? <Check size={12} /> : <Copy size={12} />}
+                    <span>{copied ? 'Copied' : 'Copy'}</span>
+                  </button>
+                )}
+
+                {/* Expand Full Editor Window */}
                 <button
-                  onClick={retrySourceSnippet}
-                  className="px-2.5 py-1 bg-[#333333] hover:bg-[#3e3e42] text-[#cccccc] hover:text-[#ffffff] rounded-[2px] text-[10px] font-mono transition-colors"
+                  onClick={() => setIsFullEditorOpen(true)}
+                  className="p-1 text-[#858585] hover:text-[#ffffff] hover:bg-[#383838] rounded-[2px] micro-tap"
+                  title="Expand to Full Code Editor (Ctrl+S)"
                 >
-                  Retry Loading
+                  <Maximize2 size={12} />
                 </button>
               </div>
-            ) : sourceSnippet?.lines && sourceSnippet.lines.length > 0 ? (
-              <div className="space-y-0 min-w-full">
-                {sourceSnippet.lines.map((lineItem: any, idx: number) => {
-                  const lineContent =
-                    typeof lineItem === 'string' ? lineItem : lineItem?.content ?? '';
-                  const lineNum =
-                    typeof lineItem === 'object' && lineItem !== null
-                      ? lineItem.number ?? idx + 1
-                      : idx + 1;
-                  const isTarget =
-                    typeof lineItem === 'object' && lineItem !== null
-                      ? Boolean(lineItem.is_target)
-                      : false;
+            </div>
 
-                  return (
-                    <div
-                      key={idx}
-                      className={`flex items-start group rounded-[1px] px-1 transition-colors leading-relaxed ${
-                        isTarget
-                          ? 'bg-[#094771]/60 border-l-2 border-[#007acc] text-[#ffffff]'
-                          : 'hover:bg-[#2a2d2e] text-[#cccccc]'
-                      }`}
-                    >
-                      <span className="w-8 flex-shrink-0 text-right pr-3 text-[10px] text-[#858585] select-none group-hover:text-[#cccccc]">
-                        {lineNum}
-                      </span>
-                      <pre className="flex-1 whitespace-pre leading-relaxed m-0 p-0 overflow-x-visible">
-                        <code
-                          dangerouslySetInnerHTML={{
-                            __html: highlightPython(lineContent),
-                          }}
-                        />
-                      </pre>
+            {/* Syntax Error Alert if any */}
+            {inlineEditMode && inlineSyntaxError && (
+              <div className="px-2.5 py-1.5 bg-[#332020] border-b border-[#f14c4c]/40 text-[#f14c4c] flex items-center justify-between text-[10px] font-mono">
+                <span>
+                  <strong>Line {inlineSyntaxError.line}:</strong> {inlineSyntaxError.message}
+                </span>
+              </div>
+            )}
+
+            {/* Editor Body */}
+            {inlineEditMode ? (
+              <div className="bg-[#1e1e1e] flex flex-col h-72 font-mono text-[11px] relative">
+                {isLoadingInline ? (
+                  <div className="flex-1 flex flex-col items-center justify-center gap-2 text-[#858585]">
+                    <div className="w-4 h-4 border-2 border-[#007acc] border-t-transparent rounded-full animate-spin" />
+                    <span>Loading file for editing...</span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex-1 flex overflow-hidden">
+                      {/* Left Line Number Gutter */}
+                      <div
+                        ref={inlineLineGutterRef}
+                        className="w-9 bg-[#1e1e1e] border-r border-[#2d2d2d] py-2 text-right pr-2 select-none overflow-hidden text-[#555555] leading-[18px]"
+                      >
+                        {Array.from({ length: inlineTotalLines }).map((_, i) => (
+                          <div key={i + 1}>{i + 1}</div>
+                        ))}
+                      </div>
+
+                      {/* Textarea */}
+                      <textarea
+                        ref={inlineTextareaRef}
+                        value={inlineContent}
+                        onChange={(e) => setInlineContent(e.target.value)}
+                        onKeyDown={handleInlineKeyDown}
+                        spellCheck={false}
+                        autoCapitalize="off"
+                        autoComplete="off"
+                        className="flex-1 h-full py-2 px-2.5 bg-transparent text-[#d4d4d4] font-mono leading-[18px] resize-none outline-none overflow-auto code-scroll selection:bg-[#264f78]"
+                      />
                     </div>
-                  );
-                })}
+
+                    <div className="h-5 px-2 bg-[#252526] border-t border-[#3e3e42] flex items-center justify-between text-[9px] text-[#858585]">
+                      <span>{isInlineDirty ? '● Unsaved Changes' : 'Saved'}</span>
+                      <span>Press Ctrl+S to save</span>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
-              <div className="py-6 text-center text-[#858585] font-mono text-xs">
-                Source definition not available for this node.
+              /* Read-only syntax highlighted viewer */
+              <div className="bg-[#1e1e1e] p-2 max-h-72 overflow-auto code-scroll text-[11px] font-mono">
+                {isLoadingSource ? (
+                  <div className="py-8 flex flex-col items-center justify-center gap-2 text-[#858585] font-mono text-xs">
+                    <div className="w-4 h-4 border-2 border-[#007acc] border-t-transparent rounded-full animate-spin" />
+                    <span>Loading source snippet...</span>
+                  </div>
+                ) : sourceError ? (
+                  <div className="py-4 px-3 bg-[#2b2020] border border-[#f14c4c]/40 rounded-[2px] text-center space-y-2">
+                    <div className="text-[11px] text-[#f14c4c] font-semibold flex items-center justify-center gap-1.5">
+                      <AlertCircle size={14} />
+                      <span>Source preview unavailable</span>
+                    </div>
+                    <p className="text-[10px] text-[#858585]">{sourceError}</p>
+                    <button
+                      onClick={retrySourceSnippet}
+                      className="px-2.5 py-1 bg-[#333333] hover:bg-[#3e3e42] text-[#cccccc] hover:text-[#ffffff] rounded-[2px] text-[10px] font-mono transition-colors"
+                    >
+                      Retry Loading
+                    </button>
+                  </div>
+                ) : sourceSnippet?.lines && sourceSnippet.lines.length > 0 ? (
+                  <div className="space-y-0 min-w-full">
+                    {sourceSnippet.lines.map((lineItem: any, idx: number) => {
+                      const lineContent =
+                        typeof lineItem === 'string' ? lineItem : lineItem?.content ?? '';
+                      const lineNum =
+                        typeof lineItem === 'object' && lineItem !== null
+                          ? lineItem.number ?? idx + 1
+                          : idx + 1;
+                      const isTarget =
+                        typeof lineItem === 'object' && lineItem !== null
+                          ? Boolean(lineItem.is_target)
+                          : false;
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`flex items-start group rounded-[1px] px-1 transition-colors leading-relaxed ${
+                            isTarget
+                              ? 'bg-[#094771]/60 border-l-2 border-[#007acc] text-[#ffffff]'
+                              : 'hover:bg-[#2a2d2e] text-[#cccccc]'
+                          }`}
+                        >
+                          <span className="w-8 flex-shrink-0 text-right pr-3 text-[10px] text-[#858585] select-none group-hover:text-[#cccccc]">
+                            {lineNum}
+                          </span>
+                          <pre className="flex-1 whitespace-pre leading-relaxed m-0 p-0 overflow-x-visible">
+                            <code
+                              dangerouslySetInnerHTML={{
+                                __html: highlightPython(lineContent),
+                              }}
+                            />
+                          </pre>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="py-6 text-center text-[#858585] font-mono text-xs">
+                    Source definition not available for this node.
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Footer Info */}
-      <div className="h-8 px-3 border-t border-[#3e3e42] bg-[#2d2d2d] flex items-center justify-between text-[10px] font-mono text-[#858585]">
-        <span className="truncate max-w-[200px]">Node: {selectedNode.id}</span>
-        <button
-          onClick={() => openRenameModal(selectedNode)}
-          className="text-[#007acc] hover:text-[#0098ff] font-medium hover:underline"
-        >
-          Refactor Symbol →
-        </button>
-      </div>
-    </aside>
+        {/* Footer Info */}
+        <div className="h-8 px-3 border-t border-[#3e3e42] bg-[#2d2d2d] flex items-center justify-between text-[10px] font-mono text-[#858585]">
+          <span className="truncate max-w-[140px]">Node: {selectedNode.id}</span>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setIsFullEditorOpen(true)}
+              className="text-[#4ec9b0] hover:text-[#7ee8d3] font-medium hover:underline flex items-center gap-1"
+            >
+              <Code size={11} />
+              <span>Full Editor</span>
+            </button>
+            <button
+              onClick={() => openRenameModal(selectedNode)}
+              className="text-[#007acc] hover:text-[#0098ff] font-medium hover:underline"
+            >
+              Refactor (F2) →
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Full Screen / Window Code Editor Modal */}
+      <CodeEditorModal
+        isOpen={isFullEditorOpen}
+        onClose={() => setIsFullEditorOpen(false)}
+        filePath={selectedNode.file}
+        initialLine={selectedNode.line}
+      />
+    </>
   );
 };

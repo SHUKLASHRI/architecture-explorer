@@ -150,3 +150,55 @@ export async function applyRename(
   }
   return res.json();
 }
+
+export interface FileContentResponse {
+  file: string;
+  filename: string;
+  content: string;
+  lines_count: number;
+}
+
+export interface SaveFileResponse {
+  success: boolean;
+  message: string;
+  project_map?: AnalyzeResponse;
+  error?: string;
+  syntax_error?: {
+    line: number;
+    offset: number;
+    text?: string;
+    message: string;
+  };
+}
+
+export async function fetchFileContent(file: string): Promise<FileContentResponse> {
+  const res = await fetchWithTimeout(`${BASE_URL}/file/content?file=${encodeURIComponent(file)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error || `HTTP ${res.status}: Failed to load file`);
+  }
+  return res.json();
+}
+
+export async function saveFileContent(
+  file: string,
+  content: string,
+  projectPath?: string
+): Promise<SaveFileResponse> {
+  const res = await fetchWithTimeout(`${BASE_URL}/file/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      file,
+      content,
+      project_path: projectPath || '',
+    }),
+  });
+
+  const data = await res.json().catch(() => ({ error: res.statusText }));
+  if (!res.ok) {
+    throw data;
+  }
+  return data;
+}
+
