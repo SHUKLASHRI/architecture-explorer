@@ -124,7 +124,7 @@ export const HeaderBar: React.FC = () => {
 
         <div className="flex items-center space-x-2 pr-1">
           {/* Irminsul Tree Vector Logo */}
-          <IrminsulLogo className="w-5 h-5 text-white filter drop-shadow-[0_0_6px_rgba(255,255,255,0.25)] transition-transform duration-200 hover:scale-105" />
+          <IrminsulLogo className="w-6 h-6 filter drop-shadow-[0_0_8px_rgba(255,255,255,0.3)] transition-transform duration-200 hover:scale-110" />
           <span className="font-semibold text-xs text-[#ffffff] tracking-normal font-sans hidden sm:inline">
             Irminsul IDE
           </span>
