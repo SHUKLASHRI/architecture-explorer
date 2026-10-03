@@ -25,7 +25,7 @@ import {
 } from 'lucide-react';
 import { IrminsulLogo } from './IrminsulLogo';
 
-type MenuId = 'file' | 'edit' | 'selection' | 'view' | 'go' | 'run' | 'terminal' | 'help' | 'profile' | null;
+type MenuId = 'file' | 'edit' | 'selection' | 'view' | 'go' | 'run' | 'terminal' | 'help' | null;
 
 export const HeaderBar: React.FC = () => {
   const {
@@ -202,7 +202,7 @@ export const HeaderBar: React.FC = () => {
   return (
     <header
       ref={menuBarRef}
-      className="h-[38px] bg-[#1e1e1e] border-b border-[#333333] px-2 flex items-center justify-between z-30 select-none font-sans text-xs relative flex-shrink-0"
+      className="h-[38px] bg-[#1e1e1e] border-b border-[#333333] px-2 flex items-center justify-between z-[100] select-none font-sans text-xs relative flex-shrink-0"
     >
       {/* LEFT: App Logo + VS Code Menu Bar (File, Edit, Selection, View, Go, Run, Terminal, Help) */}
       <div className="flex items-center space-x-1">
@@ -857,16 +857,7 @@ export const HeaderBar: React.FC = () => {
 
         <div className="h-3 w-[1px] bg-[#3e3e42]" />
 
-        {/* Search */}
-        <button
-          onClick={openSpotlight}
-          className="p-1 rounded text-[#858585] hover:text-[#ffffff] hover:bg-[#333333] transition-colors"
-          title="Search / Command Palette (Ctrl+Shift+P)"
-        >
-          <Search size={14} />
-        </button>
-
-        {/* Settings */}
+        {/* Preferences: Settings */}
         <button
           onClick={openSettings}
           className="p-1 rounded text-[#858585] hover:text-[#ffffff] hover:bg-[#333333] transition-colors"
@@ -874,60 +865,6 @@ export const HeaderBar: React.FC = () => {
         >
           <Settings size={14} />
         </button>
-
-        {/* Profile Avatar */}
-        <div className="relative">
-          <button
-            onClick={() => setActiveMenu(activeMenu === 'profile' ? null : 'profile')}
-            className="flex items-center gap-1 pl-1 pr-1 py-0.5 rounded hover:bg-[#333333] transition-colors text-[#cccccc]"
-            title="Workspace Details & Engine Status"
-          >
-            <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-[#007acc] to-[#4ec9b0] flex items-center justify-center text-[10px] font-bold text-[#ffffff] shadow-sm">
-              I
-            </div>
-            <ChevronDown size={10} className="text-[#858585]" />
-          </button>
-          {activeMenu === 'profile' && (
-            <div className="absolute right-0 top-[34px] w-56 bg-[#252526] border border-[#3e3e42] rounded shadow-2xl py-1 z-50 text-xs text-[#cccccc]">
-              <div className="px-3 py-2 border-b border-[#333333]">
-                <div className="font-semibold text-[#ffffff]">{repoName}</div>
-                <div className="text-[10px] text-[#4ec9b0] font-mono">
-                  {nodes.length} symbols • {edges.length} calls
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  loadProject(projectPath, true);
-                  setActiveMenu(null);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[#094771] hover:text-[#ffffff] text-left"
-              >
-                <RefreshCw size={13} />
-                <span>Re-scan Python AST</span>
-              </button>
-              <button
-                onClick={() => {
-                  openWelcome();
-                  setActiveMenu(null);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[#094771] hover:text-[#ffffff] text-left"
-              >
-                <Sparkles size={13} className="text-[#cca700]" />
-                <span>Getting Started Walkthrough</span>
-              </button>
-              <button
-                onClick={() => {
-                  openSettings();
-                  setActiveMenu(null);
-                }}
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-[#094771] hover:text-[#ffffff] text-left"
-              >
-                <Settings size={13} />
-                <span>Manage Settings</span>
-              </button>
-            </div>
-          )}
-        </div>
       </div>
     </header>
   );

@@ -11,7 +11,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onDismis
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed bottom-8 right-4 z-50 flex flex-col gap-2 pointer-events-none select-none max-w-sm w-full">
+    <div className="fixed bottom-8 right-4 z-[210] flex flex-col gap-2 pointer-events-none select-none max-w-sm w-full">
       {toasts.map((toast) => {
         const icon =
           toast.type === 'error' ? (

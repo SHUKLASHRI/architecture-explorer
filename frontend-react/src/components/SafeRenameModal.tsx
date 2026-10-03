@@ -91,7 +91,7 @@ export const SafeRenameModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/65 z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-150"
+      className="fixed inset-0 bg-black/65 z-[200] flex items-center justify-center p-4 select-none animate-in fade-in duration-150"
       onClick={closeRenameModal}
     >
       <div

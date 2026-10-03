@@ -53,7 +53,7 @@ export const CommandPaletteModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center pt-[8vh] select-none"
+      className="fixed inset-0 bg-black/60 z-[200] flex items-start justify-center pt-[8vh] select-none"
       onClick={closeSpotlight}
     >
       <div

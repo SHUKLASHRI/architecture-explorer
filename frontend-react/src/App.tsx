@@ -77,14 +77,13 @@ const PyArchStudioApp: React.FC = () => {
     <div className="h-screen w-screen relative overflow-hidden bg-[#1e1e1e] text-[#cccccc] font-sans text-xs antialiased select-none flex flex-col">
       {/* VS Code Top Indeterminate Progress Line (when parsing/loading AST) */}
       {isLoading && (
-        <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#252526] z-50 overflow-hidden">
+        <div className="absolute top-0 left-0 right-0 h-[2px] bg-[#252526] z-[150] overflow-hidden">
           <div className="h-full bg-[#007acc] w-1/3 animate-[pulse_1s_ease-in-out_infinite] translate-x-1/2" />
         </div>
       )}
 
       {/* 1. TOP VS CODE TITLE & MENU BAR (Matching User Screenshot) */}
       <HeaderBar />
-
 
       {/* 3. IMMERSIVE CANVAS */}
       <HeroCanvas />
@@ -107,7 +106,7 @@ const PyArchStudioApp: React.FC = () => {
 
       {/* VS CODE BOTTOM NOTIFICATION TOAST (Clean, non-intrusive error handling) */}
       {error && (
-        <div className="absolute bottom-9 right-4 z-50 bg-[#252526] border border-[#3e3e42] text-[#cccccc] p-3 rounded-[3px] shadow-2xl flex items-start gap-2.5 max-w-md font-sans animate-in fade-in slide-in-from-bottom-2">
+        <div className="absolute bottom-9 right-4 z-[210] bg-[#252526] border border-[#3e3e42] text-[#cccccc] p-3 rounded-[3px] shadow-2xl flex items-start gap-2.5 max-w-md font-sans animate-in fade-in slide-in-from-bottom-2">
           <AlertCircle size={18} className="text-[#f14c4c] flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-xs text-[#ffffff] mb-0.5">Architecture Analysis Error</div>

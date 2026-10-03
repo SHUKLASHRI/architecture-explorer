@@ -164,7 +164,7 @@ export const CodeEditorModal: React.FC<CodeEditorModalProps> = ({
   const fileName = filePath.split(/[/\\]/).pop() || filePath;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4 select-none">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-[2px] p-4 select-none">
       <div
         className={`bg-[#1e1e1e] border border-[#3e3e42] rounded-[4px] shadow-2xl flex flex-col overflow-hidden transition-all duration-150 ${
           isMaximized ? 'w-full h-full m-0' : 'w-[92vw] max-w-5xl h-[84vh]'
