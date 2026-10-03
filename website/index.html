@@ -926,6 +926,19 @@
       &bull;
       <a href="https://github.com/SHUKLASHRI/architecture-explorer/releases/tag/v1.0.0" target="_blank" rel="noreferrer" style="color: #58a6ff; text-decoration: underline;">All Release Notes &amp; Checksums on GitHub</a>
     </div>
+
+    <!-- Security & First-Time Launch Guidance -->
+    <div style="margin-top: 2rem; background: rgba(0, 122, 204, 0.07); border: 1px solid rgba(0, 122, 204, 0.25); border-radius: 10px; padding: 1.25rem; text-align: left; font-size: 0.82rem; color: var(--text-muted); max-width: 820px; margin-left: auto; margin-right: auto;">
+      <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.6rem; color: #58a6ff; font-weight: 700; font-size: 0.88rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <span>Open Source Security &amp; First-Time Launch Notes</span>
+      </div>
+      <ul style="margin-left: 1.25rem; line-height: 1.6; display: flex; flex-direction: column; gap: 0.4rem;">
+        <li><strong style="color: #e6edf3;">Windows SmartScreen:</strong> Irminsul IDE binaries are 100% open-source and free of UPX packers. On first launch of a newly released version, Windows SmartScreen may show <em>"Windows protected your PC"</em>. Simply click <strong>"More info" &rarr; "Run anyway"</strong> to launch.</li>
+        <li><strong style="color: #e6edf3;">macOS Gatekeeper:</strong> If macOS prompts that the developer cannot be verified, right-click <code>IrminsulIDE.app</code> in Applications and choose <strong>"Open"</strong> (or run <code>xattr -cr /Applications/IrminsulIDE.app</code> in Terminal).</li>
+        <li><strong style="color: #e6edf3;">Linux:</strong> Remember to grant execution permissions by running <code>chmod +x IrminsulIDE-v1.0.0-x86_64.AppImage</code> in your terminal before launching.</li>
+      </ul>
+    </div>
   </section>
 
   <!-- Footer -->
