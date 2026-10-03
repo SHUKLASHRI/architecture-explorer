@@ -125,9 +125,43 @@ if __name__ == "__main__":
     except Exception:
         pass
 
+    def apply_native_icon():
+        if os.name != 'nt' or not icon_arg:
+            return
+        try:
+            import ctypes
+            import time
+            time.sleep(0.1)
+            WM_SETICON = 0x0080
+            ICON_SMALL = 0
+            ICON_BIG = 1
+            LR_LOADFROMFILE = 0x00000010
+            IMAGE_ICON = 1
+
+            hwnd = None
+            if hasattr(window, 'native') and window.native:
+                try:
+                    hwnd = int(window.native.Handle.ToInt64())
+                except Exception:
+                    pass
+            if not hwnd:
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Irminsul IDE")
+
+            if hwnd:
+                h_small = ctypes.windll.user32.LoadImageW(None, icon_arg, IMAGE_ICON, 16, 16, LR_LOADFROMFILE)
+                h_big = ctypes.windll.user32.LoadImageW(None, icon_arg, IMAGE_ICON, 32, 32, LR_LOADFROMFILE)
+                if h_small:
+                    ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, ICON_SMALL, h_small)
+                if h_big:
+                    ctypes.windll.user32.SendMessageW(hwnd, WM_SETICON, ICON_BIG, h_big)
+        except Exception:
+            pass
+
+    window.events.shown += apply_native_icon
+
     try:
         # Prefer modern Edge Chromium engine on Windows for maximum 120 FPS performance
-        webview.start(gui='edgechromium', debug=False, icon=icon_arg)
+        webview.start(apply_native_icon, gui='edgechromium', debug=False, icon=icon_arg)
     except Exception:
-        webview.start(debug=False, icon=icon_arg)
+        webview.start(apply_native_icon, debug=False, icon=icon_arg)
 
