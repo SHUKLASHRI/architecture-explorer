@@ -1,222 +1,229 @@
-"""
-refactor.py — Safe, offset-based function rename refactoring.
+"""Safe, AST-offset-based function and method renaming."""
 
-Safety contract:
-  1. Only renames call sites that were RESOLVED to the target node
-     (ambiguous and unresolved call sites are never touched).
-  2. Uses exact (file, line, col) offsets from the parser — NOT a regex find-and-replace.
-  3. Verifies that the text at each planned location actually contains the old name
-     before writing anything (if any check fails, the entire rename is aborted).
-  4. Writes changes atomically per file: all substitutions for a file are applied
-     in a single read-modify-write. Files are only written after ALL checks pass.
-  5. Receiver-aware: does not rename attribute calls on non-self receivers
-     (consistent with graph_builder.py's resolution filter).
-"""
+from __future__ import annotations
 
+import keyword
 import os
+from typing import Any, Optional
+import networkx as nx
 
 
-# ---------------------------------------------------------------------------
-# Planning phase — returns a substitution plan, writes nothing
-# ---------------------------------------------------------------------------
+def _is_valid_identifier(name: str) -> bool:
+    return name.isidentifier() and not keyword.iskeyword(name)
+
+
+def _make_substitution(
+    file_path: str,
+    line: int,
+    col: int,
+    old_text: str,
+    new_text: str,
+    context: str,
+) -> dict[str, Any]:
+    display_context = ""
+    try:
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        if 1 <= line <= len(lines):
+            display_context = lines[line - 1].rstrip()
+    except IOError:
+        pass
+
+    return {
+        "file": file_path,
+        "filename": os.path.basename(file_path),
+        "line": line,
+        "col": col,
+        "old_text": old_text,
+        "new_text": new_text,
+        "old": old_text,
+        "new": new_text,
+        "context": context,
+        "display_line": display_context,
+    }
+
 
 def plan_rename(
-    parsed: dict,
-    graph,           # nx.DiGraph
+    graph: nx.DiGraph,
     target_node_id: str,
     new_name: str,
-) -> dict:
-    """
-    Build a substitution plan for renaming the function identified by target_node_id.
+    parsed: Optional[dict[str, Any]] = None,
+) -> dict[str, Any]:
+    """Build a precise substitution plan for renaming a function or method.
 
-    Returns:
-        {
-          "ok": True,
-          "old_name": str,
-          "new_name": str,
-          "substitutions": [
-              { "file": abs_path, "line": int, "col": int,
-                "old_text": str, "new_text": str, "context": str }
-          ]
-        }
-    or:
-        { "ok": False, "error": str }
+    Returns plan dictionary with list of exact (file, line, col) substitutions.
     """
     if target_node_id not in graph.nodes:
         return {"ok": False, "error": f"Node '{target_node_id}' not found in graph."}
 
     node_data = graph.nodes[target_node_id]
-    if node_data.get("kind") != "function":
-        return {"ok": False, "error": "Only function nodes can be renamed."}
+    if node_data.get("kind") not in ("function", "async_function", "method"):
+        return {"ok": False, "error": f"Node '{target_node_id}' is not a function or method."}
 
-    old_name = node_data["name"]
-
+    old_name = node_data.get("name", "")
     if not _is_valid_identifier(new_name):
         return {"ok": False, "error": f"'{new_name}' is not a valid Python identifier."}
 
     if new_name == old_name:
-        return {"ok": False, "error": "New name is the same as the current name."}
+        return {"ok": False, "error": "New name is identical to the current name."}
 
-    substitutions = []
+    file_path = os.path.abspath(node_data.get("file", ""))
+    if not os.path.isfile(file_path):
+        return {"ok": False, "error": f"Source file not found for node: {file_path}"}
 
-    # 1. The function definition itself
-    #    AST col_offset for FunctionDef points to the 'def' keyword.
-    #    The function name starts after 'def ' (4 chars) or 'async def ' (10 chars).
-    #    We need to check which one is in the file to set the right offset.
-    def_col = node_data["col"]
-    def_line = node_data["line"]
+    def_col = node_data.get("col", 0)
+    def_line = node_data.get("line", 1)
+
     try:
-        with open(node_data["file"], "r", encoding="utf-8") as _f:
-            _lines = _f.readlines()
-        _line_text = _lines[def_line - 1] if def_line <= len(_lines) else ""
-        # Check for 'async def ' vs 'def '
-        stripped = _line_text[def_col:]
-        if stripped.startswith("async def "):
-            def_col += 10  # len("async def ")
-        elif stripped.startswith("def "):
-            def_col += 4   # len("def ")
-    except IOError:
-        def_col += 4  # assume plain 'def ' as fallback
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            source_lines = f.readlines()
+        line_text = source_lines[def_line - 1] if def_line <= len(source_lines) else ""
+        remainder = line_text[def_col:]
+        if remainder.startswith("async def "):
+            def_col += 10
+        elif remainder.startswith("def "):
+            def_col += 4
+        else:
+            # Fallback search for def <old_name> on this line
+            idx = line_text.find(old_name)
+            if idx != -1:
+                def_col = idx
+    except IOError as e:
+        return {"ok": False, "error": f"Failed reading source file: {e}"}
 
-    def_sub = _make_substitution(
-        file=node_data["file"],
-        line=node_data["line"],
-        col=def_col,
-        old_text=old_name,
-        new_text=new_name,
-        context="definition",
-    )
-    substitutions.append(def_sub)
+    substitutions: list[dict[str, Any]] = [
+        _make_substitution(
+            file_path=file_path,
+            line=def_line,
+            col=def_col,
+            old_text=old_name,
+            new_text=new_name,
+            context="definition",
+        )
+    ]
 
-    # 2. All RESOLVED call sites that point to this node
-    #    Walk graph edges that land on target_node_id
-    for src, tgt, edge_data in graph.in_edges(target_node_id, data=True):
+    # Collect resolved incoming call sites
+    for src, _, edge_data in graph.in_edges(target_node_id, data=True):
         if edge_data.get("type") not in ("calls", "instantiates"):
             continue
-        # Find the corresponding call record in parsed["calls"]
+
         call_file = edge_data.get("file")
         call_line = edge_data.get("line")
         call_col = edge_data.get("col")
 
-        if call_file and call_line is not None:
-            sub = _make_substitution(
-                file=call_file,
-                line=call_line,
-                col=call_col,
-                old_text=old_name,
-                new_text=new_name,
-                context=f"call from {src}",
+        if call_file and call_line is not None and call_col is not None:
+            resolved_file = os.path.abspath(call_file)
+            substitutions.append(
+                _make_substitution(
+                    file_path=resolved_file,
+                    line=call_line,
+                    col=call_col,
+                    old_text=old_name,
+                    new_text=new_name,
+                    context=f"call from {src}",
+                )
             )
-            substitutions.append(sub)
 
-    # De-duplicate (same location might appear from multiple traversal paths)
-    seen = set()
-    unique_subs = []
-    for s in substitutions:
-        key = (s["file"], s["line"], s["col"])
-        if key not in seen:
-            seen.add(key)
-            unique_subs.append(s)
+    # De-duplicate identical locations
+    seen_locations: set[tuple[str, int, int]] = set()
+    unique_subs: list[dict[str, Any]] = []
+    files_affected: set[str] = set()
+
+    for sub in substitutions:
+        key = (sub["file"], sub["line"], sub["col"])
+        if key not in seen_locations:
+            seen_locations.add(key)
+            unique_subs.append(sub)
+            files_affected.add(sub["file"])
 
     return {
         "ok": True,
+        "node_id": target_node_id,
         "old_name": old_name,
         "new_name": new_name,
         "substitutions": unique_subs,
+        "files_affected": sorted(list(files_affected)),
     }
 
 
-# ---------------------------------------------------------------------------
-# Verification phase — checks offsets against actual file content
-# ---------------------------------------------------------------------------
-
-def verify_plan(plan: dict) -> dict:
-    """
-    Read each file and verify that the text at each planned (line, col)
-    actually contains old_text. Returns a dict with ok=True if all checks
-    pass, or ok=False with details of which checks failed.
-    """
+def verify_plan(plan: dict[str, Any]) -> dict[str, Any]:
+    """Verify that each planned substitution matches the expected old text in the actual file."""
     if not plan.get("ok"):
         return plan
 
-    failures = []
-    for sub in plan["substitutions"]:
-        file = sub["file"]
-        line = sub["line"]
+    failures: list[dict[str, Any]] = []
+    for sub in plan.get("substitutions", []):
+        file_path = sub["file"]
+        line_num = sub["line"]
         col = sub["col"]
-        old_text = sub["old_text"]
+        expected = sub["old_text"]
 
         try:
-            with open(file, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 lines = f.readlines()
-            # lines is 0-indexed; line numbers from AST are 1-indexed
-            line_content = lines[line - 1]
-            actual = line_content[col: col + len(old_text)]
-            if actual != old_text:
+
+            if line_num > len(lines) or line_num < 1:
                 failures.append({
-                    "file": file,
-                    "line": line,
+                    "file": file_path,
+                    "line": line_num,
                     "col": col,
-                    "expected": old_text,
+                    "expected": expected,
+                    "found": f"<line {line_num} out of bounds>",
+                })
+                continue
+
+            line_text = lines[line_num - 1]
+            actual = line_text[col:col + len(expected)]
+            if actual != expected:
+                failures.append({
+                    "file": file_path,
+                    "line": line_num,
+                    "col": col,
+                    "expected": expected,
                     "found": actual,
                 })
-        except (IOError, IndexError) as e:
-            failures.append({"file": file, "line": line, "col": col, "error": str(e)})
+        except IOError as e:
+            failures.append({
+                "file": file_path,
+                "line": line_num,
+                "col": col,
+                "expected": expected,
+                "error": str(e),
+            })
 
     if failures:
         return {
             "ok": False,
-            "error": "Offset verification failed — file content does not match expected text.",
+            "error": "Plan verification failed: file content does not match expected offsets.",
             "failures": failures,
         }
+
     return {"ok": True}
 
 
-# ---------------------------------------------------------------------------
-# Apply phase — writes changes atomically per file
-# ---------------------------------------------------------------------------
-
-def apply_rename(plan: dict) -> dict:
-    """
-    Apply a verified substitution plan to disk.
-
-    Reads each affected file once, applies ALL substitutions for that file
-    (processed in reverse line order to preserve offsets for earlier lines),
-    then writes back. No file is written until all in-memory substitutions
-    for that file have been successfully prepared.
-
-    Returns:
-        { "success": True, "files_modified": [abs_path, ...] }
-    or:
-        { "success": False, "error": str, "files_modified": [] }
-    """
+def apply_rename(plan: dict[str, Any]) -> dict[str, Any]:
+    """Apply verified rename substitutions atomically to disk per file."""
     if not plan.get("ok"):
-        return {"success": False, "error": plan.get("error", "Invalid plan."), "files_modified": []}
+        return {"success": False, "error": plan.get("error", "Invalid plan"), "files_modified": []}
 
-    # Group substitutions by file
-    by_file: dict[str, list[dict]] = {}
-    for sub in plan["substitutions"]:
+    by_file: dict[str, list[dict[str, Any]]] = {}
+    for sub in plan.get("substitutions", []):
         by_file.setdefault(sub["file"], []).append(sub)
 
-    new_contents: dict[str, str] = {}
+    prepared_contents: dict[str, str] = {}
 
-    for filepath, subs in by_file.items():
+    for file_path, subs in by_file.items():
         try:
-            with open(filepath, "r", encoding="utf-8") as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
         except IOError as e:
-            return {
-                "success": False,
-                "error": f"Could not read {filepath}: {e}",
-                "files_modified": [],
-            }
+            return {"success": False, "error": f"Unable to read '{file_path}': {e}", "files_modified": []}
 
-        # Process substitutions in reverse line order (bottom to top) so
-        # earlier line indices aren't shifted by earlier edits.
-        subs_sorted = sorted(subs, key=lambda s: (s["line"], s["col"]), reverse=True)
+        # Apply substitutions bottom-to-top to keep column offsets consistent
+        sorted_subs = sorted(subs, key=lambda s: (s["line"], s["col"]), reverse=True)
 
-        for sub in subs_sorted:
-            line_idx = sub["line"] - 1   # convert 1-indexed to 0-indexed
+        for sub in sorted_subs:
+            line_idx = sub["line"] - 1
             col = sub["col"]
             old_text = sub["old_text"]
             new_text = sub["new_text"]
@@ -224,77 +231,34 @@ def apply_rename(plan: dict) -> dict:
             if line_idx >= len(lines):
                 return {
                     "success": False,
-                    "error": f"Line {sub['line']} out of range in {filepath}",
+                    "error": f"Line index {sub['line']} out of bounds in '{file_path}'",
                     "files_modified": [],
                 }
 
             line = lines[line_idx]
-            # Final safety check
-            if line[col: col + len(old_text)] != old_text:
+            if line[col:col + len(old_text)] != old_text:
                 return {
                     "success": False,
-                    "error": (
-                        f"Safety check failed at {filepath}:{sub['line']}:{col} — "
-                        f"expected '{old_text}', found '{line[col: col + len(old_text)]}'"
-                    ),
+                    "error": f"Mismatch at {file_path}:{sub['line']}:{col}. Expected '{old_text}'.",
                     "files_modified": [],
                 }
 
             lines[line_idx] = line[:col] + new_text + line[col + len(old_text):]
 
-        new_contents[filepath] = "".join(lines)
+        prepared_contents[file_path] = "".join(lines)
 
-    # All preparations succeeded — now write to disk
-    files_modified = []
-    for filepath, content in new_contents.items():
+    # All files prepared successfully; write to disk
+    modified: list[str] = []
+    for file_path, content in prepared_contents.items():
         try:
-            with open(filepath, "w", encoding="utf-8") as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
-            files_modified.append(filepath)
+            modified.append(file_path)
         except IOError as e:
             return {
                 "success": False,
-                "error": f"Could not write {filepath}: {e}",
-                "files_modified": files_modified,  # partial — some files may already be written
+                "error": f"Failed writing to '{file_path}': {e}",
+                "files_modified": modified,
             }
 
-    return {"success": True, "files_modified": files_modified}
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _is_valid_identifier(name: str) -> bool:
-    """Check that name is a valid Python identifier and not a keyword."""
-    import keyword
-    return name.isidentifier() and not keyword.iskeyword(name)
-
-
-def _make_substitution(
-    file: str,
-    line: int,
-    col: int,
-    old_text: str,
-    new_text: str,
-    context: str,
-) -> dict:
-    """Read one line of context around the substitution for display in the UI."""
-    display_context = ""
-    try:
-        with open(file, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        display_context = lines[line - 1].rstrip() if line <= len(lines) else ""
-    except IOError:
-        pass
-
-    return {
-        "file": file,
-        "filename": os.path.basename(file),
-        "line": line,
-        "col": col,
-        "old_text": old_text,
-        "new_text": new_text,
-        "context": context,
-        "display_line": display_context,
-    }
+    return {"success": True, "files_modified": modified}

@@ -1,73 +1,40 @@
-"""
-backend/project_mapper.py — Comprehensive AST-based Python Architecture Engine.
+"""AST-based Python repository architecture mapper.
 
-Provides deep, production-grade static analysis for any Python repository:
-  1. Module & Package Topology: file hierarchy, docstrings, imports, exports, constants.
-  2. Symbol Extraction: functions (sync/async), classes, methods, parameters, types, decorators.
-  3. Precise Cyclomatic Complexity: computed from AST branch paths (McCabe metric).
-  4. Import-Aware Call Graph Resolution: resolves call sites via import alias maps rather than guessing.
-  5. Multi-Layer Classification: categorizes architecture into API, Services, Models, Utilities, and Core.
-  6. Diagnostics & Coupling: detects circular cycles, dead code, complexity hotspots, and Ca/Ce metrics.
+Extracts module hierarchy, symbols (classes, functions, methods), cyclomatic complexity,
+import-aware call graph resolution, architectural layers, and code metrics.
 """
+
+from __future__ import annotations
 
 import ast
 import os
-import re
-from typing import Optional, Any
+from typing import Any, Optional
 import networkx as nx
 
+from backend.analyzer import find_circular_dependencies, find_dead_functions
 
-# Directories and patterns to ignore when scanning real projects
-IGNORED_DIRS = {
-    ".git",
-    ".hg",
-    ".svn",
-    "__pycache__",
-    ".pytest_cache",
-    ".mypy_cache",
-    ".ruff_cache",
-    "venv",
-    ".venv",
-    "env",
-    ".env",
-    "virtualenv",
-    "node_modules",
-    "dist",
-    "build",
-    "eggs",
-    ".eggs",
-    "site-packages",
-    ".tox",
-}
+IGNORED_DIRS = frozenset({
+    ".git", ".hg", ".svn", "__pycache__", ".pytest_cache", ".mypy_cache",
+    ".ruff_cache", "venv", ".venv", "env", ".env", "virtualenv",
+    "node_modules", "dist", "build", "eggs", ".eggs", "site-packages", ".tox",
+})
 
 
-def _calculate_complexity(node: ast.AST) -> int:
-    """
-    Calculate Cyclomatic Complexity (McCabe metric) from AST.
-    Base complexity is 1. Each decision point / branch adds 1.
-    """
+def calculate_complexity(node: ast.AST) -> int:
+    """Calculate cyclomatic complexity (McCabe metric) from AST branch points."""
     complexity = 1
     for child in ast.walk(node):
-        # Conditional and loop branching
-        if isinstance(child, (ast.If, ast.IfExp, ast.For, ast.AsyncFor, ast.While)):
+        if isinstance(child, (ast.If, ast.IfExp, ast.For, ast.AsyncFor, ast.While, ast.ExceptHandler, ast.With, ast.AsyncWith, ast.Assert)):
             complexity += 1
-        # Exception handling
-        elif isinstance(child, ast.ExceptHandler):
-            complexity += 1
-        # Context managers and assertions
-        elif isinstance(child, (ast.With, ast.AsyncWith, ast.Assert)):
-            complexity += 1
-        # Logical operators (each 'and' / 'or' adds a branch)
         elif isinstance(child, ast.BoolOp):
             complexity += max(len(child.values) - 1, 1)
-        # Comprehension filters
         elif isinstance(child, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
             for generator in child.generators:
                 complexity += len(generator.ifs)
     return complexity
 
 
-def _format_type_annotation(node: Optional[ast.AST]) -> Optional[str]:
+def format_type_annotation(node: Optional[ast.AST]) -> Optional[str]:
     """Convert AST type annotation node to human-readable string."""
     if node is None:
         return None
@@ -76,30 +43,32 @@ def _format_type_annotation(node: Optional[ast.AST]) -> Optional[str]:
     except Exception:
         if isinstance(node, ast.Name):
             return node.id
-        elif isinstance(node, ast.Attribute):
-            return f"{_format_type_annotation(node.value)}.{node.attr}"
-        elif isinstance(node, ast.Constant):
+        if isinstance(node, ast.Attribute):
+            val = format_type_annotation(node.value)
+            return f"{val}.{node.attr}" if val else node.attr
+        if isinstance(node, ast.Constant):
             return repr(node.value)
         return "Any"
 
 
-def _format_decorator(dec_node: ast.AST) -> str:
-    """Format decorator AST into readable string like '@router.get(\"/items\")'."""
+def format_decorator(node: ast.AST) -> str:
+    """Format decorator AST into readable string."""
     try:
-        return f"@{ast.unparse(dec_node)}"
+        return f"@{ast.unparse(node)}"
     except Exception:
-        if isinstance(dec_node, ast.Name):
-            return f"@{dec_node.id}"
-        elif isinstance(dec_node, ast.Attribute):
-            return f"@{ast.unparse(dec_node.value)}.{dec_node.attr}"
-        elif isinstance(dec_node, ast.Call):
-            func_name = _format_decorator(dec_node.func).lstrip("@")
+        if isinstance(node, ast.Name):
+            return f"@{node.id}"
+        if isinstance(node, ast.Attribute):
+            val = format_decorator(node.value).lstrip("@")
+            return f"@{val}.{node.attr}"
+        if isinstance(node, ast.Call):
+            func_name = format_decorator(node.func).lstrip("@")
             return f"@{func_name}(...)"
         return "@decorator"
 
 
 class ModuleASTVisitor(ast.NodeVisitor):
-    """Deeply inspects a single Python file AST."""
+    """Visits a single Python file's AST to extract symbols, imports, and calls."""
 
     def __init__(self, filepath: str, rel_path: str):
         self.filepath = os.path.abspath(filepath)
@@ -108,14 +77,14 @@ class ModuleASTVisitor(ast.NodeVisitor):
         self.module_name = os.path.splitext(self.rel_path)[0].replace("/", ".")
 
         self.docstring: Optional[str] = None
-        self.is_package_init = self.filename == "__init__.py"
+        self.is_package_init = (self.filename == "__init__.py")
         self.has_main_block = False
 
-        self.imports: list[dict] = []
-        self.constants: list[dict] = []
-        self.classes: list[dict] = []
-        self.functions: list[dict] = []
-        self.calls: list[dict] = []
+        self.imports: list[dict[str, Any]] = []
+        self.constants: list[dict[str, Any]] = []
+        self.classes: list[dict[str, Any]] = []
+        self.functions: list[dict[str, Any]] = []
+        self.calls: list[dict[str, Any]] = []
 
         self._class_stack: list[str] = []
         self._function_stack: list[str] = []
@@ -125,7 +94,6 @@ class ModuleASTVisitor(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_If(self, node: ast.If):
-        # Check for `if __name__ == '__main__':`
         try:
             test_str = ast.unparse(node.test)
             if "__name__" in test_str and "__main__" in test_str:
@@ -145,14 +113,13 @@ class ModuleASTVisitor(ast.NodeVisitor):
             })
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
-        module_source = node.module or ""
-        # Handle relative imports (e.g. from . import foo)
+        source = node.module or ""
         if node.level > 0:
-            module_source = "." * node.level + module_source
+            source = "." * node.level + source
 
         for alias in node.names:
             self.imports.append({
-                "source_module": module_source,
+                "source_module": source,
                 "imported_name": alias.name,
                 "alias": alias.asname or alias.name,
                 "is_from": True,
@@ -161,7 +128,6 @@ class ModuleASTVisitor(ast.NodeVisitor):
             })
 
     def visit_Assign(self, node: ast.Assign):
-        # Module-level uppercase constant identification
         if not self._class_stack and not self._function_stack:
             for target in node.targets:
                 if isinstance(target, ast.Name) and target.id.isupper():
@@ -180,16 +146,15 @@ class ModuleASTVisitor(ast.NodeVisitor):
     def visit_AnnAssign(self, node: ast.AnnAssign):
         if not self._class_stack and not self._function_stack:
             if isinstance(node.target, ast.Name) and node.target.id.isupper():
-                ann_str = _format_type_annotation(node.annotation)
                 self.constants.append({
                     "name": node.target.id,
-                    "type": ann_str,
+                    "type": format_type_annotation(node.annotation),
                     "line": node.lineno,
                 })
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef):
-        bases = []
+        bases: list[str] = []
         for b in node.bases:
             try:
                 bases.append(ast.unparse(b))
@@ -197,36 +162,34 @@ class ModuleASTVisitor(ast.NodeVisitor):
                 if isinstance(b, ast.Name):
                     bases.append(b.id)
 
-        decorators = [_format_decorator(d) for d in node.decorator_list]
+        decorators = [format_decorator(d) for d in node.decorator_list]
         docstring = ast.get_docstring(node)
 
-        # Collect class-level fields / attributes
-        fields = []
+        fields: list[dict[str, Any]] = []
         for stmt in node.body:
             if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
                 fields.append({
                     "name": stmt.target.id,
-                    "type": _format_type_annotation(stmt.annotation),
+                    "type": format_type_annotation(stmt.annotation),
                     "line": stmt.lineno,
                 })
             elif isinstance(stmt, ast.Assign):
                 for target in stmt.targets:
                     if isinstance(target, ast.Name):
-                        fields.append({
-                            "name": target.id,
-                            "line": stmt.lineno,
-                        })
+                        fields.append({"name": target.id, "line": stmt.lineno})
 
         class_id = f"{self.module_name}::{node.name}"
 
         self.classes.append({
             "id": class_id,
             "name": node.name,
-            "file": self.rel_path,
+            "file": self.filepath,
+            "rel_path": self.rel_path,
             "filename": self.filename,
             "module": self.module_name,
             "line_start": node.lineno,
             "line_end": getattr(node, "end_lineno", node.lineno),
+            "col": node.col_offset,
             "bases": bases,
             "decorators": decorators,
             "docstring": docstring,
@@ -237,13 +200,12 @@ class ModuleASTVisitor(ast.NodeVisitor):
         self.generic_visit(node)
         self._class_stack.pop()
 
-    def _visit_func_def(self, node, is_async: bool):
+    def _visit_func_def(self, node: ast.FunctionDef | ast.AsyncFunctionDef, is_async: bool):
         class_owner = self._class_stack[-1] if self._class_stack else None
         docstring = ast.get_docstring(node)
-        decorators = [_format_decorator(d) for d in node.decorator_list]
+        decorators = [format_decorator(d) for d in node.decorator_list]
 
-        # Extract parameters with types and defaults
-        parameters = []
+        parameters: list[dict[str, Any]] = []
         args_len = len(node.args.args)
         defaults_len = len(node.args.defaults)
         first_default_idx = args_len - defaults_len
@@ -255,40 +217,37 @@ class ModuleASTVisitor(ast.NodeVisitor):
                     default_val = ast.unparse(node.args.defaults[idx - first_default_idx])
                 except Exception:
                     default_val = "..."
-
             parameters.append({
                 "name": arg.arg,
-                "type": _format_type_annotation(arg.annotation),
+                "type": format_type_annotation(arg.annotation),
                 "default": default_val,
             })
 
-        # *args and **kwargs
         if node.args.vararg:
             parameters.append({
                 "name": f"*{node.args.vararg.arg}",
-                "type": _format_type_annotation(node.args.vararg.annotation),
+                "type": format_type_annotation(node.args.vararg.annotation),
                 "default": None,
             })
         if node.args.kwarg:
             parameters.append({
                 "name": f"**{node.args.kwarg.arg}",
-                "type": _format_type_annotation(node.args.kwarg.annotation),
+                "type": format_type_annotation(node.args.kwarg.annotation),
                 "default": None,
             })
 
-        return_type = _format_type_annotation(node.returns)
-        complexity = _calculate_complexity(node)
+        return_type = format_type_annotation(node.returns)
+        complexity = calculate_complexity(node)
 
-        # Rating: low (1-5), moderate (6-10), high (11-20), critical (21+)
-        rating = "low"
         if complexity > 20:
             rating = "critical"
         elif complexity > 10:
             rating = "high"
         elif complexity > 5:
             rating = "moderate"
+        else:
+            rating = "low"
 
-        # Unique qualified ID
         if class_owner:
             func_id = f"{self.module_name}::{class_owner}::{node.name}"
             kind = "method"
@@ -296,8 +255,7 @@ class ModuleASTVisitor(ast.NodeVisitor):
             func_id = f"{self.module_name}::{node.name}"
             kind = "async_function" if is_async else "function"
 
-        # Construct readable signature
-        param_strs = []
+        param_strs: list[str] = []
         for p in parameters:
             s = p["name"]
             if p["type"]:
@@ -319,12 +277,14 @@ class ModuleASTVisitor(ast.NodeVisitor):
             "kind": kind,
             "is_async": is_async,
             "is_private": node.name.startswith("_") and not node.name.startswith("__"),
-            "file": self.rel_path,
+            "file": self.filepath,
+            "rel_path": self.rel_path,
             "filename": self.filename,
             "module": self.module_name,
             "class_owner": class_owner,
             "line_start": node.lineno,
             "line_end": getattr(node, "end_lineno", node.lineno),
+            "col": node.col_offset,
             "loc": getattr(node, "end_lineno", node.lineno) - node.lineno + 1,
             "signature": sig,
             "parameters": parameters,
@@ -336,8 +296,7 @@ class ModuleASTVisitor(ast.NodeVisitor):
             "complexity_rating": rating,
         })
 
-        qualified_caller = func_id
-        self._function_stack.append(qualified_caller)
+        self._function_stack.append(func_id)
         self.generic_visit(node)
         self._function_stack.pop()
 
@@ -348,9 +307,7 @@ class ModuleASTVisitor(ast.NodeVisitor):
         self._visit_func_def(node, is_async=True)
 
     def visit_Call(self, node: ast.Call):
-        # Extract caller ID from function stack
         caller_id = self._function_stack[-1] if self._function_stack else None
-
         callee_name = None
         receiver = None
 
@@ -371,7 +328,8 @@ class ModuleASTVisitor(ast.NodeVisitor):
                 "receiver": receiver,
                 "line": node.lineno,
                 "col": node.col_offset,
-                "file": self.rel_path,
+                "file": self.filepath,
+                "rel_path": self.rel_path,
                 "module": self.module_name,
             })
 
@@ -379,25 +337,22 @@ class ModuleASTVisitor(ast.NodeVisitor):
 
 
 class ProjectArchitectureMapper:
-    """
-    Orchestrates AST parsing, import resolution, call-graph construction,
-    architectural layering, and diagnostic metrics across an entire Python project.
-    """
+    """Scans Python projects to build dependency graphs, layers, and diagnostic metrics."""
 
     def __init__(self, root_path: str):
         self.root_path = os.path.abspath(root_path)
         self.project_name = os.path.basename(self.root_path) or "Python Project"
         self.parsed_modules: dict[str, ModuleASTVisitor] = {}
+        self.G: nx.DiGraph = nx.DiGraph()
 
-    def scan_and_parse(self) -> dict:
-        """Walk project directory, parse all Python files, and store AST facts."""
+    def scan_and_parse(self) -> dict[str, Any]:
+        """Parse all Python files under root_path."""
         total_files = 0
         total_lines = 0
         total_code_lines = 0
-        packages = set()
+        packages: set[str] = set()
 
         for dirpath, dirnames, filenames in os.walk(self.root_path):
-            # Prune ignored folders
             dirnames[:] = [d for d in dirnames if d not in IGNORED_DIRS and not d.startswith(".")]
 
             for fname in filenames:
@@ -407,11 +362,10 @@ class ProjectArchitectureMapper:
                 full_path = os.path.join(dirpath, fname)
                 rel_path = os.path.relpath(full_path, self.root_path).replace("\\", "/")
 
-                # Read lines for telemetry
                 try:
                     with open(full_path, "r", encoding="utf-8", errors="replace") as f:
                         source_code = f.read()
-                except Exception:
+                except IOError:
                     continue
 
                 lines = source_code.splitlines()
@@ -424,14 +378,12 @@ class ProjectArchitectureMapper:
                     if pkg_rel:
                         packages.add(pkg_rel)
 
-                # Parse AST
                 try:
                     tree = ast.parse(source_code, filename=rel_path)
                     visitor = ModuleASTVisitor(full_path, rel_path)
                     visitor.visit(tree)
                     self.parsed_modules[visitor.module_name] = visitor
-                except SyntaxError as e:
-                    # Gracefully record unparseable syntax error files
+                except SyntaxError:
                     pass
 
         return {
@@ -441,24 +393,15 @@ class ProjectArchitectureMapper:
             "packages": sorted(list(packages)),
         }
 
-    def build_architecture_graph(self) -> dict:
-        """
-        Builds a NetworkX directed graph resolving dependencies, calls,
-        inheritance, and imports.
-        """
+    def build_architecture_graph(self) -> dict[str, Any]:
+        """Construct NetworkX graph with resolved calls, instantiations, and inheritance."""
         G = nx.DiGraph()
 
-        # Indexes for fast lookup
-        # symbol_index: id -> symbol dict
-        symbol_index: dict[str, dict] = {}
-        # class_by_name: simple_class_name -> list of class ids
+        symbol_index: dict[str, dict[str, Any]] = {}
         class_by_name: dict[str, list[str]] = {}
-        # func_by_module: module_name -> dict of name -> func_id
-        func_by_module: dict[str, dict[str, str]] = {}
-        # all_classes: id -> class dict
-        all_classes: dict[str, dict] = {}
+        all_classes: dict[str, dict[str, Any]] = {}
 
-        # 1. Register all Class nodes
+        # 1. Register class nodes
         for mod in self.parsed_modules.values():
             for cls in mod.classes:
                 cls_id = cls["id"]
@@ -471,23 +414,23 @@ class ProjectArchitectureMapper:
                     name=cls["name"],
                     kind="class",
                     file=cls["file"],
+                    rel_path=cls["rel_path"],
                     filename=cls["filename"],
                     module=cls["module"],
                     line=cls["line_start"],
                     line_end=cls["line_end"],
+                    col=cls["col"],
                     bases=cls["bases"],
                     decorators=cls["decorators"],
                     docstring=cls["docstring"],
                     fields=cls["fields"],
                 )
 
-        # 2. Register all Function and Method nodes
+        # 2. Register function and method nodes
         for mod in self.parsed_modules.values():
-            func_map = func_by_module.setdefault(mod.module_name, {})
             for fn in mod.functions:
                 fn_id = fn["id"]
                 symbol_index[fn_id] = fn
-                func_map[fn["name"]] = fn_id
 
                 G.add_node(
                     fn_id,
@@ -496,10 +439,12 @@ class ProjectArchitectureMapper:
                     is_async=fn["is_async"],
                     is_private=fn["is_private"],
                     file=fn["file"],
+                    rel_path=fn["rel_path"],
                     filename=fn["filename"],
                     module=fn["module"],
                     line=fn["line_start"],
                     line_end=fn["line_end"],
+                    col=fn["col"],
                     loc=fn["loc"],
                     signature=fn["signature"],
                     parameters=fn["parameters"],
@@ -512,36 +457,29 @@ class ProjectArchitectureMapper:
                     complexity_rating=fn["complexity_rating"],
                 )
 
-        # 3. Add Inheritance edges (ClassB -> ClassA)
+        # 3. Inheritance edges
         for cls_id, cls in all_classes.items():
             for base in cls["bases"]:
-                # Match base class name
-                matched_base_ids = class_by_name.get(base, [])
-                for b_id in matched_base_ids:
-                    G.add_edge(cls_id, b_id, type="inherits")
+                for b_id in class_by_name.get(base, []):
+                    G.add_edge(cls_id, b_id, type="inherits", line=cls["line_start"])
 
-        # 4. Resolve Call Sites with Import Intelligence
+        # 4. Resolve calls
         resolved_calls = 0
         unresolved_calls = 0
+        ambiguous_calls: list[dict[str, Any]] = []
+        unresolved_list: list[dict[str, Any]] = []
 
         for mod in self.parsed_modules.values():
-            # Build import resolution map for this specific module
-            # alias -> (resolved_module_name, imported_symbol_name)
             import_map: dict[str, tuple[str, str]] = {}
-
             for imp in mod.imports:
                 src = imp["source_module"]
-                # Resolve relative import
                 if src.startswith("."):
                     level = imp.get("level", 1)
-                    curr_parts = mod.module_name.split(".")
-                    base_parts = curr_parts[:-level] if level <= len(curr_parts) else []
-                    remainder = src.lstrip(".")
-                    src = ".".join(base_parts + ([remainder] if remainder else []))
-
-                alias = imp["alias"]
-                imported_name = imp["imported_name"]
-                import_map[alias] = (src, imported_name)
+                    parts = mod.module_name.split(".")
+                    base_parts = parts[:-level] if level <= len(parts) else []
+                    rem = src.lstrip(".")
+                    src = ".".join(base_parts + ([rem] if rem else []))
+                import_map[imp["alias"]] = (src, imp["imported_name"])
 
             for call in mod.calls:
                 caller_id = call["caller_id"]
@@ -551,7 +489,7 @@ class ProjectArchitectureMapper:
                 resolved_target_id = None
                 edge_type = "calls"
 
-                # Case A: Method call on 'self' -> same class method
+                # Method call on self
                 if receiver == "self":
                     caller_data = symbol_index.get(caller_id, {})
                     class_owner = caller_data.get("class_owner")
@@ -560,34 +498,31 @@ class ProjectArchitectureMapper:
                         if candidate_id in G:
                             resolved_target_id = candidate_id
 
-                # Case B: Call via imported alias (e.g. auth.validate_user() or from auth import validate_user; validate_user())
+                # Call via imported module alias (e.g. auth.verify_token())
                 elif receiver and receiver in import_map:
                     target_mod, _ = import_map[receiver]
-                    # Check function or method in that module
                     candidate_fn_id = f"{target_mod}::{callee_name}"
                     if candidate_fn_id in G:
                         resolved_target_id = candidate_fn_id
                     elif callee_name in class_by_name:
-                        # e.g. models.User()
-                        matched_cls = [c for c in class_by_name[callee_name] if c.startswith(target_mod)]
-                        if matched_cls:
-                            resolved_target_id = matched_cls[0]
+                        matches = [c for c in class_by_name[callee_name] if c.startswith(target_mod)]
+                        if matches:
+                            resolved_target_id = matches[0]
                             edge_type = "instantiates"
 
+                # Directly imported symbol (from module import foo)
                 elif not receiver and callee_name in import_map:
-                    target_mod, target_symbol = import_map[callee_name]
-                    # Was imported symbol a class?
-                    matched_classes = class_by_name.get(target_symbol, [])
-                    target_classes = [c for c in matched_classes if c.startswith(target_mod)]
-                    if target_classes:
-                        resolved_target_id = target_classes[0]
+                    target_mod, target_sym = import_map[callee_name]
+                    class_matches = [c for c in class_by_name.get(target_sym, []) if c.startswith(target_mod)]
+                    if class_matches:
+                        resolved_target_id = class_matches[0]
                         edge_type = "instantiates"
                     else:
-                        candidate_fn_id = f"{target_mod}::{target_symbol}"
+                        candidate_fn_id = f"{target_mod}::{target_sym}"
                         if candidate_fn_id in G:
                             resolved_target_id = candidate_fn_id
 
-                # Case C: Local function / class in same module
+                # Local function/class in same module
                 elif not receiver:
                     local_fn_id = f"{mod.module_name}::{callee_name}"
                     if local_fn_id in G:
@@ -598,34 +533,43 @@ class ProjectArchitectureMapper:
                             resolved_target_id = local_classes[0]
                             edge_type = "instantiates"
 
-                # Case D: Fallback to exact unique function name match across project
+                # Unique function name across project fallback
                 if not resolved_target_id and not receiver:
-                    all_matches = [n for n, d in G.nodes(data=True) if d.get("name") == callee_name and d.get("kind") in ("function", "async_function")]
-                    if len(all_matches) == 1:
-                        resolved_target_id = all_matches[0]
+                    matches = [
+                        n for n, d in G.nodes(data=True)
+                        if d.get("name") == callee_name and d.get("kind") in ("function", "async_function")
+                    ]
+                    if len(matches) == 1:
+                        resolved_target_id = matches[0]
+                    elif len(matches) > 1:
+                        ambiguous_calls.append(call)
 
                 if resolved_target_id and caller_id in G:
-                    G.add_edge(caller_id, resolved_target_id, type=edge_type, line=call["line"])
+                    G.add_edge(
+                        caller_id,
+                        resolved_target_id,
+                        type=edge_type,
+                        line=call["line"],
+                        col=call.get("col", 0),
+                        file=call.get("file", ""),
+                    )
                     resolved_calls += 1
                 else:
                     unresolved_calls += 1
+                    unresolved_list.append(call)
 
+        self.G = G
         return {
             "graph": G,
             "resolved_calls": resolved_calls,
             "unresolved_calls": unresolved_calls,
+            "ambiguous_calls": ambiguous_calls,
+            "unresolved_list": unresolved_list,
         }
 
-    def detect_layers(self, G: nx.DiGraph) -> dict:
-        """
-        Classifies nodes into 5 architectural tiers:
-          - presentation: Web routes, API endpoints, CLI, main entrypoints
-          - services: Core business rules, handlers, logic
-          - persistence: Database models, ORM entities, queries, SQL
-          - utilities: Common helpers, formatting, parsers
-          - core: Configuration, exceptions, base types
-        """
-        layers = {
+    def detect_layers(self, G: nx.DiGraph) -> dict[str, list[str]]:
+        """Categorize nodes into presentation, services, persistence, core, or utilities."""
+        layers: dict[str, list[str]] = {
             "presentation": [],
             "services": [],
             "persistence": [],
@@ -638,110 +582,43 @@ class ProjectArchitectureMapper:
             name_lower = (data.get("name") or "").lower()
             decorators = [d.lower() for d in data.get("decorators", [])]
 
-            # 1. Presentation Tier
-            is_entry = (
-                name_lower in ("main", "run", "cli", "app") or
-                any("route" in d or "endpoint" in d or "get(" in d or "post(" in d for d in decorators) or
-                "api" in file_lower or "routes" in file_lower or "views" in file_lower
+            is_presentation = (
+                name_lower in ("main", "run", "cli", "app")
+                or any("route" in d or "endpoint" in d or "get(" in d or "post(" in d for d in decorators)
+                or any(k in file_lower for k in ("api", "routes", "views", "controllers", "endpoints"))
             )
 
-            # 2. Persistence / DB Tier
-            is_db = (
-                "database" in file_lower or "db" in file_lower or "models" in file_lower or "repository" in file_lower or
-                "sql" in file_lower or "entity" in file_lower or
-                data.get("kind") == "class" and any(b in ("Base", "Model", "SQLModel", "DeclarativeBase") for b in data.get("bases", []))
+            is_persistence = (
+                any(k in file_lower for k in ("database", "db", "models", "repository", "sql", "entity"))
+                or (data.get("kind") == "class" and any(b in ("Base", "Model", "SQLModel", "DeclarativeBase") for b in data.get("bases", [])))
             )
 
-            # 3. Core / Config Tier
-            is_core = (
-                "config" in file_lower or "setting" in file_lower or "error" in file_lower or "exception" in file_lower or
-                "constant" in file_lower or "types" in file_lower
-            )
+            is_core = any(k in file_lower for k in ("config", "setting", "error", "exception", "constant", "types"))
+            is_util = any(k in file_lower for k in ("util", "helper", "tool", "common"))
 
-            # 4. Utilities Tier
-            is_util = (
-                "util" in file_lower or "helper" in file_lower or "tool" in file_lower or "common" in file_lower
-            )
-
-            if is_entry:
-                layers["presentation"].append(node_id)
-                data["tier"] = "presentation"
-            elif is_db:
-                layers["persistence"].append(node_id)
-                data["tier"] = "persistence"
+            if is_presentation:
+                tier = "presentation"
+            elif is_persistence:
+                tier = "persistence"
             elif is_core:
-                layers["core"].append(node_id)
-                data["tier"] = "core"
+                tier = "core"
             elif is_util:
-                layers["utilities"].append(node_id)
-                data["tier"] = "utilities"
+                tier = "utilities"
             else:
-                layers["services"].append(node_id)
-                data["tier"] = "services"
+                tier = "services"
+
+            layers[tier].append(node_id)
+            data["tier"] = tier
 
         return layers
 
-    def detect_diagnostics(self, G: nx.DiGraph) -> dict:
-        """
-        Runs comprehensive architectural health scans:
-          - Simple cycles (circular call/instantiation loops)
-          - Dead code (uncalled functions excluding entrypoints and framework handlers)
-          - Complexity hotspots (cyclomatic complexity > 8)
-          - Module coupling metrics (Ca, Ce, Instability)
-        """
-        # A. Cycles
-        call_subgraph = nx.DiGraph()
-        call_subgraph.add_nodes_from(G.nodes())
-        for u, v, d in G.edges(data=True):
-            if d.get("type") in ("calls", "instantiates"):
-                call_subgraph.add_edge(u, v)
+    def detect_diagnostics(self, G: nx.DiGraph) -> dict[str, Any]:
+        """Run health diagnostics: circular dependencies, dead code, complexity hotspots, and coupling."""
+        cycles = find_circular_dependencies(G)
+        dead_functions = find_dead_functions(G)
 
-        try:
-            raw_cycles = list(nx.simple_cycles(call_subgraph))
-            cycles = [sorted(c) for c in raw_cycles]
-        except Exception:
-            cycles = []
-
-        # B. Dead code detection
-        instantiated_classes = {v for u, v, d in G.edges(data=True) if d.get("type") == "instantiates"}
-        dead_functions = []
-
-        for node_id, data in G.nodes(data=True):
-            if data.get("kind") not in ("function", "async_function", "method"):
-                continue
-
-            name = data.get("name", "")
-            decorators = data.get("decorators", [])
-
-            # Skip dunder methods
-            if name.startswith("__") and name.endswith("__"):
-                continue
-            # Skip entrypoints
-            if name in ("main", "run", "app", "start", "init", "setup"):
-                continue
-            # Skip decorated functions (e.g. FastAPI / Flask / pytest routes)
-            if any(re.search(r"@(app|router|bp|pytest|fixture|property|validator)", d, re.I) for d in decorators):
-                continue
-            # Skip methods of instantiated classes
-            class_owner = data.get("class_owner")
-            if class_owner:
-                cls_id = f"{data.get('module')}::{class_owner}"
-                if cls_id in instantiated_classes:
-                    continue
-
-            # Incoming call check
-            in_calls = [u for u, v, d in G.in_edges(node_id, data=True) if d.get("type") in ("calls", "instantiates")]
-            if not in_calls:
-                dead_functions.append({
-                    "id": node_id,
-                    "name": data.get("name"),
-                    "file": data.get("file"),
-                    "line": data.get("line"),
-                    "cyclomatic_complexity": data.get("cyclomatic_complexity", 1),
-                })
-
-        # C. Complexity Hotspots
-        hotspots = []
+        # Complexity hotspots (> 8)
+        hotspots: list[dict[str, Any]] = []
         for node_id, data in G.nodes(data=True):
             cc = data.get("cyclomatic_complexity", 1)
             if cc > 8:
@@ -749,29 +626,26 @@ class ProjectArchitectureMapper:
                     "id": node_id,
                     "name": data.get("name"),
                     "file": data.get("file"),
+                    "filename": data.get("filename"),
                     "line": data.get("line"),
                     "complexity": cc,
                     "rating": data.get("complexity_rating", "moderate"),
                 })
         hotspots.sort(key=lambda x: x["complexity"], reverse=True)
 
-        # D. Module Coupling & Instability Metrics
-        module_ca: dict[str, set[str]] = {}  # incoming modules
-        module_ce: dict[str, set[str]] = {}  # outgoing modules
+        # Module coupling metrics
+        module_ca: dict[str, set[str]] = {m: set() for m in self.parsed_modules}
+        module_ce: dict[str, set[str]] = {m: set() for m in self.parsed_modules}
 
-        for mod_name in self.parsed_modules.keys():
-            module_ca[mod_name] = set()
-            module_ce[mod_name] = set()
-
-        for u, v, d in G.edges(data=True):
+        for u, v, _ in G.edges(data=True):
             mod_u = G.nodes[u].get("module")
             mod_v = G.nodes[v].get("module")
             if mod_u and mod_v and mod_u != mod_v:
-                module_ce[mod_u].add(mod_v)
-                module_ca[mod_v].add(mod_u)
+                module_ce.setdefault(mod_u, set()).add(mod_v)
+                module_ca.setdefault(mod_v, set()).add(mod_u)
 
-        coupling_metrics = {}
-        for mod_name in self.parsed_modules.keys():
+        coupling_metrics: dict[str, dict[str, Any]] = {}
+        for mod_name in self.parsed_modules:
             ca = len(module_ca.get(mod_name, set()))
             ce = len(module_ce.get(mod_name, set()))
             instability = round(ce / (ca + ce), 2) if (ca + ce) > 0 else 0.0
@@ -788,11 +662,8 @@ class ProjectArchitectureMapper:
             "coupling_metrics": coupling_metrics,
         }
 
-    def generate_project_map(self) -> dict:
-        """
-        Executes the full pipeline and generates the unified, comprehensive
-        Project Architecture Map.
-        """
+    def generate_project_map(self) -> dict[str, Any]:
+        """Execute full scan, graph building, layer analysis, and diagnostics."""
         scan_meta = self.scan_and_parse()
         graph_res = self.build_architecture_graph()
         G = graph_res["graph"]
@@ -800,28 +671,21 @@ class ProjectArchitectureMapper:
         layers = self.detect_layers(G)
         diagnostics = self.detect_diagnostics(G)
 
-        # Serialisable nodes list
-        nodes_list = []
-        for node_id, data in G.nodes(data=True):
-            nodes_list.append({
-                "id": node_id,
-                **data,
-            })
-
-        # Serialisable edges list
-        edges_list = []
-        for u, v, d in G.edges(data=True):
-            edges_list.append({
+        nodes_list = [{"id": node_id, **data} for node_id, data in G.nodes(data=True)]
+        edges_list = [
+            {
                 "source": u,
                 "target": v,
                 "type": d.get("type", "calls"),
                 "line": d.get("line"),
-            })
+                "col": d.get("col"),
+                "file": d.get("file"),
+            }
+            for u, v, d in G.edges(data=True)
+        ]
 
-        # Serialisable module list
-        modules_list = []
-        for mod_name, mod in self.parsed_modules.items():
-            modules_list.append({
+        modules_list = [
+            {
                 "module_name": mod.module_name,
                 "filename": mod.filename,
                 "rel_path": mod.rel_path,
@@ -832,7 +696,9 @@ class ProjectArchitectureMapper:
                 "imports": mod.imports,
                 "symbols_count": len(mod.classes) + len(mod.functions),
                 "coupling": diagnostics["coupling_metrics"].get(mod_name, {}),
-            })
+            }
+            for mod_name, mod in self.parsed_modules.items()
+        ]
 
         summary = {
             "total_files": scan_meta["total_files"],
@@ -846,6 +712,8 @@ class ProjectArchitectureMapper:
             "dead_functions_count": len(diagnostics["dead_functions"]),
             "resolved_calls": graph_res["resolved_calls"],
             "unresolved_calls": graph_res["unresolved_calls"],
+            "ambiguous_count": len(graph_res.get("ambiguous_calls", [])),
+            "unresolved_count": len(graph_res.get("unresolved_list", [])),
         }
 
         return {
@@ -863,4 +731,5 @@ class ProjectArchitectureMapper:
             "edges": edges_list,
             "layers": layers,
             "diagnostics": diagnostics,
+            "graph": G,
         }
