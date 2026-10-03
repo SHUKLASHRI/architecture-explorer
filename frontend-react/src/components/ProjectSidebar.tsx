@@ -71,24 +71,8 @@ export const ProjectSidebar: React.FC = () => {
 
   const isUnfolded = leftPanelOpen || leftPanelHovered;
 
-  // MINIMIZED STATE: Sleek VS Code docked pill on the left
   if (!isUnfolded) {
-    return (
-      <div
-        onMouseEnter={() => setLeftPanelHovered(true)}
-        onClick={() => setLeftPanelOpen(true)}
-        className="absolute left-3 top-14 z-40 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] px-2.5 py-1.5 shadow-lg cursor-pointer transition-colors flex items-center gap-2"
-        title="Hover to peek, click to pin open (Ctrl+B)"
-      >
-        <Boxes size={15} className="text-[#007acc]" />
-        <span className="font-mono text-xs font-medium text-[#cccccc] tracking-normal">
-          {projectName}
-        </span>
-        <span className="text-[10px] font-mono text-[#858585] bg-[#1e1e1e] border border-[#3e3e42] px-1 rounded-[2px]">
-          {nodes.length}
-        </span>
-      </div>
-    );
+    return null;
   }
 
   // EXPANDED STATE: VS Code Primary Sidebar

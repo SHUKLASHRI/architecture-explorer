@@ -190,21 +190,8 @@ export const InspectorPanel: React.FC = () => {
     }
   };
 
-  // FOLDED PEEK STATE: VS Code slim chip
   if (!isUnfolded) {
-    return (
-      <div
-        onMouseEnter={() => setRightPanelHovered(true)}
-        onClick={() => setRightPanelOpen(true)}
-        className="absolute right-3 top-14 z-40 bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] rounded-[3px] px-2.5 py-1.5 shadow-lg cursor-pointer transition-colors flex items-center gap-2"
-        title="Hover to peek, click to pin open (Ctrl+J)"
-      >
-        <Crosshair size={14} className="text-[#007acc]" />
-        <span className="font-mono text-xs font-medium text-[#cccccc] tracking-normal">
-          {selectedNode ? selectedNode.name : 'Inspector'}
-        </span>
-      </div>
-    );
+    return null;
   }
 
   // EMPTY STATE (No symbol selected)

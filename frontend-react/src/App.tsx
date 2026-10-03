@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { ExplorerProvider, useExplorer } from './context/ExplorerContext';
 import { HeaderBar } from './components/HeaderBar';
-import { WorkbenchSubBar } from './components/WorkbenchSubBar';
 import { ProjectSidebar } from './components/ProjectSidebar';
 import { HeroCanvas } from './components/HeroCanvas';
 import { InspectorPanel } from './components/InspectorPanel';
@@ -86,8 +85,6 @@ const PyArchStudioApp: React.FC = () => {
       {/* 1. TOP VS CODE TITLE & MENU BAR (Matching User Screenshot) */}
       <HeaderBar />
 
-      {/* 2. SECONDARY WORKBENCH SUB-BAR (Modes, Hops, Layers, Export) */}
-      <WorkbenchSubBar />
 
       {/* 3. IMMERSIVE CANVAS */}
       <HeroCanvas />
