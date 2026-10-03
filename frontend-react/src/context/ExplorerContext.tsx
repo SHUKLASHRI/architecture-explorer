@@ -15,6 +15,10 @@ import type {
   ProjectMeta,
   CardDensity,
   ToastNotification,
+  IDESettings,
+  TerminalTab,
+  TerminalHistoryItem,
+  RecentProject,
 } from '../types';
 import * as api from '../api/client';
 
@@ -98,6 +102,33 @@ interface ExplorerContextType {
   setRightPanelHovered: (v: boolean) => void;
   minimizeAllPanels: () => void;
 
+  // Settings & Theme
+  settings: IDESettings;
+  updateSettings: (s: Partial<IDESettings>) => void;
+  isSettingsOpen: boolean;
+  openSettings: () => void;
+  closeSettings: () => void;
+
+  // Welcome & Walkthrough
+  isWelcomeOpen: boolean;
+  openWelcome: () => void;
+  closeWelcome: () => void;
+
+  // Bottom Panel & Integrated Terminal
+  isBottomPanelOpen: boolean;
+  setIsBottomPanelOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  toggleBottomPanel: () => void;
+  bottomPanelTab: TerminalTab;
+  setBottomPanelTab: (t: TerminalTab) => void;
+  terminalHistory: TerminalHistoryItem[];
+  isTerminalRunning: boolean;
+  runTerminalCommand: (cmd: string) => Promise<void>;
+  clearTerminal: () => void;
+
+  // Recent Projects
+  recentProjects: RecentProject[];
+  addToRecentProjects: (path: string) => void;
+
   // Actions
   loadProject: (path?: string, forceRefresh?: boolean) => Promise<void>;
   selectNodeById: (nodeId: string) => void;
@@ -153,6 +184,119 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Visual Hierarchy & Cognitive Load controls
   const [cardDensity, setCardDensity] = useState<CardDensity>('standard');
   const [activeLayerFilter, setActiveLayerFilter] = useState<string>('ALL');
+
+  // VS Code Settings
+  const [settings, setSettings] = useState<IDESettings>(() => {
+    try {
+      const saved = localStorage.getItem('irminsul_settings');
+      if (saved) return { ...JSON.parse(saved) };
+    } catch {}
+    return {
+      editorFontSize: 13,
+      editorTabSize: 4,
+      editorWordWrap: true,
+      editorMinimap: true,
+      editorLineNumbers: true,
+      graphAutoLayout: true,
+      graphPhysics: true,
+      graphAlgorithm: 'Radial',
+      graphCardDensity: 'standard',
+      graphNodeSpacing: 60,
+      analysisCycleCheck: true,
+      analysisDeadCode: true,
+      analysisPythonTarget: '3.12',
+      theme: 'vs-dark',
+    };
+  });
+
+  const updateSettings = useCallback((updates: Partial<IDESettings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...updates };
+      try {
+        localStorage.setItem('irminsul_settings', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [isWelcomeOpen, setIsWelcomeOpen] = useState<boolean>(false);
+
+  // Bottom Panel & Terminal
+  const [isBottomPanelOpen, setIsBottomPanelOpen] = useState<boolean>(false);
+  const [bottomPanelTab, setBottomPanelTab] = useState<TerminalTab>('terminal');
+  const [terminalHistory, setTerminalHistory] = useState<TerminalHistoryItem[]>(() => [
+    {
+      id: 'init-1',
+      command: 'echo "Irminsul IDE v1.0.0 Ready"',
+      stdout: 'Irminsul IDE v1.0.0 [Production Mode - AST Python Engine Connected]\nType any terminal or python command below or click quick actions.\n',
+      stderr: '',
+      exitCode: 0,
+      timestamp: new Date().toLocaleTimeString(),
+    },
+  ]);
+  const [isTerminalRunning, setIsTerminalRunning] = useState<boolean>(false);
+
+  const runTerminalCommand = useCallback(
+    async (cmd: string) => {
+      if (!cmd.trim()) return;
+      setIsTerminalRunning(true);
+      try {
+        const res = await api.executeTerminalCommand(cmd, projectPath);
+        const item: TerminalHistoryItem = {
+          id: `cmd-${Date.now()}`,
+          command: cmd,
+          stdout: res.stdout || '',
+          stderr: res.stderr || '',
+          exitCode: res.exit_code,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        setTerminalHistory((prev) => [...prev, item]);
+      } catch (err: any) {
+        const item: TerminalHistoryItem = {
+          id: `cmd-${Date.now()}`,
+          command: cmd,
+          stdout: '',
+          stderr: err.message || err.error || 'Execution failed',
+          exitCode: 1,
+          timestamp: new Date().toLocaleTimeString(),
+        };
+        setTerminalHistory((prev) => [...prev, item]);
+      } finally {
+        setIsTerminalRunning(false);
+      }
+    },
+    [projectPath]
+  );
+
+  const clearTerminal = useCallback(() => {
+    setTerminalHistory([]);
+  }, []);
+
+  // Recent Projects
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>(() => {
+    try {
+      const saved = localStorage.getItem('irminsul_recent');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [
+      { path: 'sample_project', name: 'sample_project', lastOpened: 'Just now' },
+      { path: 'architecture-explorer', name: 'architecture-explorer (Self)', lastOpened: 'Today' },
+    ];
+  });
+
+  const addToRecentProjects = useCallback((p: string) => {
+    if (!p) return;
+    const name = p.split(/[\\/]/).filter(Boolean).pop() || p;
+    setRecentProjects((prev) => {
+      const filtered = prev.filter((item) => item.path !== p);
+      const next = [{ path: p, name, lastOpened: 'Just now' }, ...filtered.slice(0, 7)];
+      try {
+        localStorage.setItem('irminsul_recent', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
 
   // Toast Notification & Undo system
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
@@ -567,6 +711,34 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         rightPanelHovered,
         setRightPanelHovered,
         minimizeAllPanels,
+
+        // Settings
+        settings,
+        updateSettings,
+        isSettingsOpen,
+        openSettings: () => setIsSettingsOpen(true),
+        closeSettings: () => setIsSettingsOpen(false),
+
+        // Welcome & Walkthrough
+        isWelcomeOpen,
+        openWelcome: () => setIsWelcomeOpen(true),
+        closeWelcome: () => setIsWelcomeOpen(false),
+
+        // Bottom Panel & Terminal
+        isBottomPanelOpen,
+        setIsBottomPanelOpen,
+        toggleBottomPanel: () => setIsBottomPanelOpen((prev) => !prev),
+        bottomPanelTab,
+        setBottomPanelTab,
+        terminalHistory,
+        isTerminalRunning,
+        runTerminalCommand,
+        clearTerminal,
+
+        // Recent Projects
+        recentProjects,
+        addToRecentProjects,
+
         loadProject,
         selectNodeById,
         selectNode: setSelectedNode,

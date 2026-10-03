@@ -230,6 +230,20 @@ class TestFlaskAPI(unittest.TestCase):
         self.assertTrue(data["ok"])
         self.assertIn("substitutions", data)
 
+    def test_terminal_run_endpoint(self):
+        res = self.client.post(
+            "/terminal/run",
+            json={
+                "command": "python -c \"print('Irminsul IDE OK')\"",
+                "project_path": "sample_project",
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        data = res.get_json()
+        self.assertEqual(data["exit_code"], 0)
+        self.assertIn("Irminsul IDE OK", data["stdout"])
+
 
 if __name__ == "__main__":
     unittest.main()
+

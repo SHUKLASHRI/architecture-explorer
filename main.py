@@ -101,6 +101,30 @@ if __name__ == "__main__":
                 return result[0]
             return None
 
+        def minimize_window(self):
+            """Minimize the native desktop window."""
+            try:
+                window.minimize()
+            except Exception:
+                pass
+
+        def toggle_maximize_window(self):
+            """Toggle maximize/restore for desktop window."""
+            try:
+                if getattr(window, 'maximized', False):
+                    window.restore()
+                else:
+                    window.maximize()
+            except Exception:
+                pass
+
+        def close_window(self):
+            """Close/exit desktop application."""
+            try:
+                window.destroy()
+            except Exception:
+                pass
+
     api = DesktopApi()
 
     # Open native window (like Figma / VS Code desktop)

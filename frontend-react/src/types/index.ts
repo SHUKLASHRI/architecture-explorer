@@ -211,3 +211,38 @@ export interface ToastNotification {
   onAction?: () => void;
   duration?: number;
 }
+
+export interface IDESettings {
+  editorFontSize: number;
+  editorTabSize: number;
+  editorWordWrap: boolean;
+  editorMinimap: boolean;
+  editorLineNumbers: boolean;
+  graphAutoLayout: boolean;
+  graphPhysics: boolean;
+  graphAlgorithm: 'Radial' | 'Hierarchical' | 'Sugiyama' | 'Force-Directed';
+  graphCardDensity: CardDensity;
+  graphNodeSpacing: number;
+  analysisCycleCheck: boolean;
+  analysisDeadCode: boolean;
+  analysisPythonTarget: string;
+  theme: 'vs-dark' | 'abyss' | 'one-dark' | 'high-contrast';
+}
+
+export type TerminalTab = 'terminal' | 'diagnostics' | 'output';
+
+export interface TerminalHistoryItem {
+  id: string;
+  command: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+  timestamp: string;
+}
+
+export interface RecentProject {
+  path: string;
+  name: string;
+  lastOpened: string;
+}
+

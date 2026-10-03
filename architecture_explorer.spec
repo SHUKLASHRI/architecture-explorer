@@ -9,9 +9,11 @@ a = Analysis(
     pathex=['.'],
     binaries=[],
     datas=[
-        ('frontend', 'frontend'),           # HTML + CSS assets
-        ('sample_project', 'sample_project'), # bundled test project
-        ('backend', 'backend'),             # Python backend modules
+        ('frontend', 'frontend'),             # Built frontend assets
+        ('sample_project', 'sample_project'), # Bundled sample project
+        ('backend', 'backend'),               # Python backend modules
+        ('icon.ico', '.'),                    # Native Windows icon
+        ('logo.svg', '.'),                    # Vector branding
     ],
     hiddenimports=[
         'networkx',

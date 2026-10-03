@@ -14,18 +14,31 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from backend.project_service import service
 
 FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "frontend")
+WEBSITE_DIR = os.path.join(os.path.dirname(__file__), "website")
 
 app = Flask(__name__, static_folder=FRONTEND_DIR, static_url_path="")
 CORS(app)
 
 
 # ---------------------------------------------------------------------------
-# Static frontend routes
+# Static frontend and download website routes
 # ---------------------------------------------------------------------------
 
 @app.route("/")
 def index():
     return send_from_directory(FRONTEND_DIR, "index.html")
+
+
+@app.route("/download")
+def download():
+    """Serve Irminsul IDE product download & landing page."""
+    return send_from_directory(WEBSITE_DIR, "index.html")
+
+
+@app.route("/website/<path:path>")
+def website_static(path: str):
+    """Serve website static assets (logo, favicon)."""
+    return send_from_directory(WEBSITE_DIR, path)
 
 
 @app.route("/<path:path>")
@@ -264,6 +277,43 @@ def rename_apply():
         return jsonify({"error": str(e)}), 404
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Terminal Execution Endpoint
+# ---------------------------------------------------------------------------
+
+@app.route("/terminal/run", methods=["POST"])
+def terminal_run():
+    import subprocess
+    data = request.get_json(silent=True) or {}
+    command = data.get("command", "").strip()
+    project_path = data.get("project_path", "").strip()
+
+    if not command:
+        return jsonify({"error": "command is required"}), 400
+
+    cwd = project_path if (project_path and os.path.isdir(project_path)) else os.path.dirname(os.path.abspath(__file__))
+
+    try:
+        res = subprocess.run(
+            command,
+            shell=True,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+        return jsonify({
+            "stdout": res.stdout,
+            "stderr": res.stderr,
+            "exit_code": res.returncode,
+            "cwd": cwd,
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({"error": "Command execution timed out (20s limit)", "exit_code": 124, "cwd": cwd}), 408
+    except Exception as e:
+        return jsonify({"error": str(e), "exit_code": 1, "cwd": cwd}), 500
 
 
 # ---------------------------------------------------------------------------

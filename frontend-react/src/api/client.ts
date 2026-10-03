@@ -202,3 +202,32 @@ export async function saveFileContent(
   return data;
 }
 
+export interface TerminalRunResponse {
+  stdout: string;
+  stderr: string;
+  exit_code: number;
+  cwd?: string;
+  error?: string;
+}
+
+export async function executeTerminalCommand(
+  command: string,
+  projectPath?: string
+): Promise<TerminalRunResponse> {
+  const res = await fetchWithTimeout(`${BASE_URL}/terminal/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      command,
+      project_path: projectPath || '',
+    }),
+  }, 22000);
+
+  const data = await res.json().catch(() => ({ error: res.statusText }));
+  if (!res.ok) {
+    throw data;
+  }
+  return data;
+}
+
+

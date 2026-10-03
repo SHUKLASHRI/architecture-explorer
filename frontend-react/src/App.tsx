@@ -1,11 +1,15 @@
 import React, { useEffect } from 'react';
 import { ExplorerProvider, useExplorer } from './context/ExplorerContext';
 import { HeaderBar } from './components/HeaderBar';
+import { WorkbenchSubBar } from './components/WorkbenchSubBar';
 import { ProjectSidebar } from './components/ProjectSidebar';
 import { HeroCanvas } from './components/HeroCanvas';
 import { InspectorPanel } from './components/InspectorPanel';
+import { BottomPanel } from './components/BottomPanel';
 import { SafeRenameModal } from './components/SafeRenameModal';
 import { CommandPaletteModal } from './components/CommandPaletteModal';
+import { SettingsModal } from './components/SettingsModal';
+import { WelcomeModal } from './components/WelcomeModal';
 import { ToastContainer } from './components/ToastContainer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import {
@@ -28,6 +32,8 @@ const PyArchStudioApp: React.FC = () => {
     zoom,
     setLeftPanelOpen,
     setRightPanelOpen,
+    toggleBottomPanel,
+    openSettings,
     minimizeAllPanels,
     apiConnected,
     toasts,
@@ -47,6 +53,16 @@ const PyArchStudioApp: React.FC = () => {
         e.preventDefault();
         setRightPanelOpen((prev) => !prev);
       }
+      // Ctrl+` / Cmd+`: Toggle Bottom Terminal
+      if ((e.ctrlKey || e.metaKey) && e.key === '`') {
+        e.preventDefault();
+        toggleBottomPanel();
+      }
+      // Ctrl+, / Cmd+,: Open Settings
+      if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+        e.preventDefault();
+        openSettings();
+      }
       // Escape: minimize open floating panels if modals aren't open
       if (e.key === 'Escape') {
         minimizeAllPanels();
@@ -54,7 +70,7 @@ const PyArchStudioApp: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [setLeftPanelOpen, setRightPanelOpen, minimizeAllPanels]);
+  }, [setLeftPanelOpen, setRightPanelOpen, toggleBottomPanel, openSettings, minimizeAllPanels]);
 
   const repoName = projectPath.split(/[\\/]/).filter(Boolean).pop() || 'project';
 
@@ -67,19 +83,27 @@ const PyArchStudioApp: React.FC = () => {
         </div>
       )}
 
-      {/* 1. IMMERSIVE FULL-BLEED CANVAS (Occupies 100% of workspace) */}
-      <HeroCanvas />
-
-      {/* 2. TOP COMMAND TITLEBAR */}
+      {/* 1. TOP VS CODE TITLE & MENU BAR (Matching User Screenshot) */}
       <HeaderBar />
 
-      {/* 3. DYNAMIC LEFT SIDEBAR & RIGHT INSPECTOR */}
+      {/* 2. SECONDARY WORKBENCH SUB-BAR (Modes, Hops, Layers, Export) */}
+      <WorkbenchSubBar />
+
+      {/* 3. IMMERSIVE CANVAS */}
+      <HeroCanvas />
+
+      {/* 4. DYNAMIC LEFT SIDEBAR & RIGHT INSPECTOR */}
       <ProjectSidebar />
       <InspectorPanel />
+
+      {/* 5. INTEGRATED BOTTOM TERMINAL & PROBLEMS DOCK */}
+      <BottomPanel />
 
       {/* MODALS */}
       <CommandPaletteModal />
       <SafeRenameModal />
+      <SettingsModal />
+      <WelcomeModal />
 
       {/* TOAST SYSTEM (With Undo Actions & Feedback) */}
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
