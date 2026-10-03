@@ -31,6 +31,10 @@
       box-sizing: border-box;
     }
 
+    html {
+      scroll-behavior: smooth;
+    }
+
     body {
       background-color: var(--bg);
       color: var(--text);
@@ -87,8 +91,13 @@
       color: var(--text-muted);
     }
 
+    .nav-links a {
+      transition: color 0.15s ease;
+      cursor: pointer;
+    }
+
     .nav-links a:hover {
-      color: var(--text);
+      color: #58a6ff;
     }
 
     .btn-cta {
@@ -104,11 +113,13 @@
       box-shadow: 0 4px 16px rgba(0, 122, 204, 0.35);
       transition: all 0.2s ease;
       border: 1px solid rgba(255, 255, 255, 0.2);
+      cursor: pointer;
     }
 
     .btn-cta:hover {
       transform: translateY(-1px);
       box-shadow: 0 6px 20px rgba(0, 122, 204, 0.5);
+      color: #ffffff;
     }
 
     .btn-secondary {
@@ -123,53 +134,54 @@
       gap: 0.5rem;
       border: 1px solid var(--card-border);
       transition: all 0.2s ease;
+      cursor: pointer;
     }
 
     .btn-secondary:hover {
       background: #30363d;
       border-color: #8b949e;
+      color: #ffffff;
     }
 
     /* Hero Section */
     .hero {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 6rem 2rem 4rem;
+      max-width: 1080px;
+      margin: 4.5rem auto 3rem;
       text-align: center;
-      position: relative;
+      padding: 0 1.5rem;
     }
 
     .badge-pill {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
+      padding: 0.35rem 0.9rem;
+      border-radius: 9999px;
       background: rgba(0, 122, 204, 0.12);
-      border: 1px solid rgba(0, 122, 204, 0.35);
+      border: 1px solid rgba(0, 122, 204, 0.3);
       color: #58a6ff;
-      padding: 0.35rem 0.95rem;
-      border-radius: 100px;
       font-size: 0.82rem;
       font-weight: 600;
-      margin-bottom: 1.75rem;
+      margin-bottom: 1.5rem;
     }
 
     .hero h1 {
-      font-size: clamp(2.4rem, 5vw, 4.2rem);
+      font-size: 3.25rem;
       font-weight: 800;
-      line-height: 1.15;
       letter-spacing: -0.03em;
-      margin-bottom: 1.5rem;
-      background: linear-gradient(180deg, #ffffff 30%, #8b949e 100%);
+      line-height: 1.15;
+      margin-bottom: 1.25rem;
+      background: linear-gradient(180deg, #ffffff 0%, #c9d1d9 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
     .hero p {
-      max-width: 760px;
-      margin: 0 auto 2.5rem;
-      font-size: 1.15rem;
+      font-size: 1.2rem;
       color: var(--text-muted);
-      line-height: 1.7;
+      max-width: 760px;
+      margin: 0 auto 2.25rem;
+      line-height: 1.6;
     }
 
     .cta-group {
@@ -177,8 +189,39 @@
       align-items: center;
       justify-content: center;
       gap: 1rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .os-pills {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.6rem;
       flex-wrap: wrap;
       margin-bottom: 2rem;
+    }
+
+    .pill-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 0.35rem 0.85rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s ease;
+    }
+
+    .pill-btn:hover {
+      background: rgba(0, 122, 204, 0.2);
+      border-color: #007acc;
+      color: #ffffff;
+      transform: translateY(-1px);
     }
 
     .install-box {
@@ -187,22 +230,11 @@
       gap: 0.75rem;
       background: #161b22;
       border: 1px solid var(--card-border);
-      padding: 0.65rem 1.25rem;
+      padding: 0.5rem 1rem;
       border-radius: 8px;
       font-family: var(--font-mono);
-      font-size: 0.88rem;
-      color: var(--emerald);
-    }
-
-    .install-box button {
-      background: transparent;
-      border: none;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    .install-box button:hover {
-      color: var(--text);
+      font-size: 0.85rem;
+      color: #7ee787;
     }
 
     /* Product Mockup Preview */
@@ -365,6 +397,76 @@
       line-height: 1.6;
     }
 
+    /* How It Works Section */
+    .how-it-works {
+      max-width: 1200px;
+      margin: 0 auto 6rem;
+      padding: 0 2rem;
+    }
+
+    .steps-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .step-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 2rem 1.5rem;
+      transition: all 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .step-card:hover {
+      transform: translateY(-4px);
+      border-color: #58a6ff;
+      box-shadow: 0 12px 30px rgba(0, 122, 204, 0.2);
+    }
+
+    .step-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #007acc 0%, #0098ff 100%);
+      color: #ffffff;
+      font-weight: 800;
+      font-size: 0.95rem;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 0 15px rgba(0, 122, 204, 0.4);
+    }
+
+    .step-card h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: #ffffff;
+    }
+
+    .step-card p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-bottom: 1.25rem;
+      flex-grow: 1;
+    }
+
+    .step-preview {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 0.75rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      line-height: 1.5;
+    }
+
     /* Download Banner */
     .download-section {
       max-width: 1000px;
@@ -392,36 +494,96 @@
 
     .platforms-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1.5rem;
       margin-bottom: 2rem;
     }
 
     .platform-card {
       background: #21262d;
       border: 1px solid var(--card-border);
-      border-radius: 8px;
-      padding: 1.5rem 1rem;
+      border-radius: 10px;
+      padding: 2rem 1.25rem;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 0.75rem;
       transition: all 0.2s ease;
+      cursor: pointer;
     }
 
     .platform-card:hover {
       border-color: #58a6ff;
       background: #30363d;
+      transform: translateY(-2px);
     }
 
     .platform-title {
       font-weight: 700;
-      font-size: 1rem;
+      font-size: 1.15rem;
     }
 
     .platform-meta {
-      font-size: 0.78rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
+    }
+
+    .platform-sublinks {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .platform-sublinks a {
+      color: #58a6ff;
+      text-decoration: underline;
+    }
+
+    /* Download Toast Notification */
+    .download-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 1000;
+      background: #161b22;
+      border: 1px solid #007acc;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 122, 204, 0.35);
+      border-radius: 10px;
+      padding: 1.2rem 1.5rem;
+      max-width: 420px;
+      color: #e6edf3;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .toast-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #58a6ff;
+    }
+
+    .toast-body {
+      font-size: 0.85rem;
+      color: #8b949e;
+      line-height: 1.5;
+    }
+
+    .toast-link {
+      color: #4ec9b0;
+      text-decoration: underline;
+      font-size: 0.8rem;
+      cursor: pointer;
     }
 
     /* Footer */
@@ -464,10 +626,10 @@
       <a href="#download">Download</a>
       <a href="https://github.com/SHUKLASHRI/architecture-explorer" target="_blank" rel="noreferrer">GitHub</a>
     </div>
-    <a href="#download" class="btn-cta">
+    <button onclick="downloadAutoDetected()" class="btn-cta">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-      <span>Download v1.0.0</span>
-    </a>
+      <span id="nav-btn-text">Download v1.0.0</span>
+    </button>
   </nav>
 
   <!-- Hero Section -->
@@ -483,14 +645,22 @@
     </p>
 
     <div class="cta-group">
-      <a href="#download" class="btn-cta" style="padding: 0.8rem 1.8rem; font-size: 1rem;">
+      <button id="hero-download-btn" onclick="downloadAutoDetected()" class="btn-cta" style="padding: 0.8rem 1.8rem; font-size: 1rem;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-        <span>Download for Windows (64-bit)</span>
-      </a>
+        <span id="hero-download-label">Download for Windows (.exe)</span>
+      </button>
       <a href="https://github.com/SHUKLASHRI/architecture-explorer" target="_blank" rel="noreferrer" class="btn-secondary" style="padding: 0.8rem 1.5rem; font-size: 1rem;">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
         <span>View Source on GitHub</span>
       </a>
+    </div>
+
+    <!-- Direct OS Pills -->
+    <div class="os-pills">
+      <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 0.25rem;">Direct Downloads:</span>
+      <button onclick="downloadBinary('windows')" class="pill-btn">🪟 Windows (.exe)</button>
+      <button onclick="downloadBinary('macos')" class="pill-btn">🍎 macOS (.dmg)</button>
+      <button onclick="downloadBinary('linux')" class="pill-btn">🐧 Linux (.AppImage)</button>
     </div>
 
     <div>
@@ -618,52 +788,231 @@
     </div>
   </section>
 
+  <!-- How It Works Section -->
+  <section id="how-it-works" class="how-it-works">
+    <div class="section-header">
+      <h2>How It Works</h2>
+      <p>Under the hood of the AST static analysis and refactoring engine.</p>
+    </div>
+
+    <div class="steps-container">
+      <div class="step-card">
+        <div class="step-badge">1</div>
+        <h3>AST Ingestion &amp; Parsing</h3>
+        <p>
+          Irminsul IDE walks your codebase without executing code. Python's standard library <code>ast</code> parser extracts function signatures, class hierarchies, import statements, and call sites safely.
+        </p>
+        <div class="step-preview" style="color: #58a6ff;">
+          tree = ast.parse(source)<br/>
+          &rarr; 24 modules indexed<br/>
+          &rarr; 142 symbols resolved
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-badge">2</div>
+        <h3>Layer &amp; Complexity Topology</h3>
+        <p>
+          The engine infers architectural roles (Presentation, Services, Persistence, Core) and computes cyclomatic complexity scores. Nodes are positioned automatically via Sugiyama or Force-Directed graph algorithms.
+        </p>
+        <div class="step-preview" style="color: #4ec9b0;">
+          Layers: [API, Service, DB]<br/>
+          Complexity: Low (1) to High (12)<br/>
+          Layout: Hierarchical Sugiyama
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-badge">3</div>
+        <h3>Tarjan SCC Cycle Detection</h3>
+        <p>
+          Circular imports are isolated in linear O(V + E) time using Tarjan's Strongly Connected Components algorithm. Cyclic paths are immediately isolated into a dedicated HUD and highlighted in amber.
+        </p>
+        <div class="step-preview" style="color: #cca700;">
+          SCC detected: [auth, db, auth]<br/>
+          Severity: High Cycle<br/>
+          Recommendation: Extract interface
+        </div>
+      </div>
+
+      <div class="step-card">
+        <div class="step-badge">4</div>
+        <h3>Atomic Multi-File Refactoring</h3>
+        <p>
+          Renaming a symbol updates every import, call site, and definition across the repository. A dry-run diff verifies syntax integrity before applying atomic writes to disk.
+        </p>
+        <div class="step-preview" style="color: #7ee787;">
+          Diff verification: PASSED<br/>
+          Files modified: 4<br/>
+          Live AST sync: Instant
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Download Section -->
   <section id="download" class="download-section">
     <h2>Download Irminsul IDE</h2>
-    <p>Zero configuration required. Download the portable executable or build from source.</p>
+    <p>Zero configuration required. Download your standalone desktop build or clone from source.</p>
 
     <div class="platforms-grid">
-      <a href="https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE.exe" class="platform-card">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="#0078d4"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
+      <!-- Windows Card -->
+      <div class="platform-card" onclick="downloadBinary('windows')">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="#0078d4"><path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.9-1.801"/></svg>
         <div class="platform-title">Windows</div>
         <div class="platform-meta">Standalone .exe &bull; 64-bit</div>
-        <span class="btn-cta" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.4rem 0.9rem;">Download .exe</span>
-      </a>
+        <button class="btn-cta" style="margin-top: 0.5rem; font-size: 0.85rem; padding: 0.5rem 1.1rem; width: 100%; justify-content: center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Download .exe</span>
+        </button>
+        <div class="platform-sublinks">
+          <a href="#" onclick="downloadBinary('windowsZip'); event.stopPropagation();">Portable ZIP (.zip)</a>
+        </div>
+      </div>
 
-      <a href="https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE-v1.0.0-macOS.dmg" class="platform-card">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="#cccccc"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.55.63-.99 1.68-.88 2.7 1.02.08 2.02-.48 2.61-1.2"/></svg>
+      <!-- macOS Card -->
+      <div class="platform-card" onclick="downloadBinary('macos')">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="#cccccc"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.55.63-.99 1.68-.88 2.7 1.02.08 2.02-.48 2.61-1.2"/></svg>
         <div class="platform-title">macOS</div>
-        <div class="platform-meta">Disk Image .dmg &bull; Universal</div>
-        <span class="btn-cta" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.4rem 0.9rem;">Download .dmg</span>
-      </a>
+        <div class="platform-meta">Universal DMG &bull; Apple Silicon &amp; Intel</div>
+        <button class="btn-cta" style="margin-top: 0.5rem; font-size: 0.85rem; padding: 0.5rem 1.1rem; width: 100%; justify-content: center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Download .dmg</span>
+        </button>
+        <div class="platform-sublinks">
+          <span style="color: var(--text-muted);">macOS 12.0+</span>
+        </div>
+      </div>
 
-      <a href="https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE-v1.0.0-x86_64.AppImage" class="platform-card">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="#f1502f"><path d="M12.001 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-11.999-12z"/></svg>
+      <!-- Linux Card -->
+      <div class="platform-card" onclick="downloadBinary('linux')">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="#f1502f"><path d="M12.001 0C5.373 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-11.999-12z"/></svg>
         <div class="platform-title">Linux</div>
         <div class="platform-meta">Standalone .AppImage &bull; x86_64</div>
-        <span class="btn-cta" style="margin-top: 0.5rem; font-size: 0.8rem; padding: 0.4rem 0.9rem;">Download .AppImage</span>
-      </a>
+        <button class="btn-cta" style="margin-top: 0.5rem; font-size: 0.85rem; padding: 0.5rem 1.1rem; width: 100%; justify-content: center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          <span>Download .AppImage</span>
+        </button>
+        <div class="platform-sublinks">
+          <a href="#" onclick="downloadBinary('linuxTar'); event.stopPropagation();">Tarball (.tar.gz)</a>
+        </div>
+      </div>
     </div>
 
     <div style="font-size: 0.88rem; color: var(--text-muted);">
       Or run instantly with Python: 
       <code style="background: #21262d; padding: 0.2rem 0.5rem; border-radius: 4px; font-family: var(--font-mono); color: #ffffff;">python main.py</code>
+      &bull;
+      <a href="https://github.com/SHUKLASHRI/architecture-explorer/releases/tag/v1.0.0" target="_blank" rel="noreferrer" style="color: #58a6ff; text-decoration: underline;">All Release Notes &amp; Checksums on GitHub</a>
     </div>
   </section>
 
   <!-- Footer -->
   <footer>
-    <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: gap: 1rem;">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
       <div style="display: flex; align-items: center; gap: 0.5rem;">
         <img src="logo.svg" width="18" height="18" alt="" />
-        <span>Irminsul IDE • MIT License</span>
+        <span>Irminsul IDE &bull; MIT License</span>
       </div>
       <div>
-        Created for Python Developers • <a href="https://github.com/SHUKLASHRI/architecture-explorer" target="_blank" rel="noreferrer">GitHub</a>
+        Created for Python Developers &bull; <a href="https://github.com/SHUKLASHRI/architecture-explorer" target="_blank" rel="noreferrer">GitHub Repository</a>
       </div>
     </div>
   </footer>
+
+  <!-- Direct Download Controller Script -->
+  <script>
+    const RELEASE_URLS = {
+      windows: "https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE.exe",
+      windowsZip: "https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE-v1.0.0-Windows-x64.zip",
+      macos: "https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE-v1.0.0-macOS.dmg",
+      linux: "https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE-v1.0.0-x86_64.AppImage",
+      linuxTar: "https://github.com/SHUKLASHRI/architecture-explorer/releases/download/v1.0.0/IrminsulIDE-v1.0.0-Linux-x64.tar.gz"
+    };
+
+    function detectUserOS() {
+      const ua = (navigator.userAgent || '').toLowerCase();
+      const plat = (navigator.platform || '').toLowerCase();
+      if (ua.includes('mac') || plat.includes('mac')) return 'macos';
+      if (ua.includes('linux') || plat.includes('linux')) return 'linux';
+      return 'windows';
+    }
+
+    // Initialize OS labels
+    (function initHeroOS() {
+      const os = detectUserOS();
+      const btn = document.getElementById('hero-download-label');
+      const navBtn = document.getElementById('nav-btn-text');
+      if (btn) {
+        if (os === 'macos') {
+          btn.textContent = 'Download for macOS (.dmg)';
+        } else if (os === 'linux') {
+          btn.textContent = 'Download for Linux (.AppImage)';
+        } else {
+          btn.textContent = 'Download for Windows (.exe)';
+        }
+      }
+      if (navBtn) {
+        navBtn.textContent = 'Download v1.0.0';
+      }
+    })();
+
+    function downloadAutoDetected() {
+      const os = detectUserOS();
+      downloadBinary(os);
+    }
+
+    function showDownloadToast(filename, downloadUrl) {
+      // Remove existing toast if any
+      const oldToast = document.getElementById('active-download-toast');
+      if (oldToast) oldToast.remove();
+
+      const toast = document.createElement('div');
+      toast.id = 'active-download-toast';
+      toast.className = 'download-toast';
+      toast.innerHTML = `
+        <div class="toast-header">
+          <span>⬇ Downloading ${filename}</span>
+          <button onclick="this.closest('.download-toast').remove()" style="background:none; border:none; color:#8b949e; cursor:pointer; font-size:1.1rem;">&times;</button>
+        </div>
+        <div class="toast-body">
+          Your browser is downloading the standalone release. If your download did not start automatically, please click below:
+        </div>
+        <a class="toast-link" href="${downloadUrl}" download="${filename}">
+          Direct mirror link for ${filename} &rarr;
+        </a>
+      `;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        if (toast && toast.parentNode) {
+          toast.style.transition = 'opacity 0.4s ease';
+          toast.style.opacity = '0';
+          setTimeout(() => toast.remove(), 400);
+        }
+      }, 9000);
+    }
+
+    function downloadBinary(platformKey) {
+      const url = RELEASE_URLS[platformKey] || RELEASE_URLS.windows;
+      const filename = url.substring(url.lastIndexOf('/') + 1);
+
+      // Show toast
+      showDownloadToast(filename, url);
+
+      // Trigger download immediately without navigating away
+      const tempLink = document.createElement('a');
+      tempLink.href = url;
+      tempLink.setAttribute('download', filename);
+      tempLink.setAttribute('rel', 'noopener noreferrer');
+      tempLink.style.display = 'none';
+      document.body.appendChild(tempLink);
+      tempLink.click();
+      setTimeout(() => {
+        tempLink.remove();
+      }, 1500);
+    }
+  </script>
 
 </body>
 </html>
