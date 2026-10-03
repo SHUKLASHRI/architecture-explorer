@@ -122,20 +122,12 @@ export const HeaderBar: React.FC = () => {
         </button>
 
         <div className="flex items-center space-x-1.5 pr-1">
-          {/* VS Code iconic logo glyph */}
-          <svg
-            width="15"
-            height="15"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#007acc"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="16 18 22 12 16 6"></polyline>
-            <polyline points="8 6 2 12 8 18"></polyline>
-          </svg>
+          {/* Irminsul Tree Logo */}
+          <img
+            src="/logo-transparent.png"
+            alt="Irminsul IDE"
+            className="w-4 h-4 object-contain flex-shrink-0"
+          />
           <span className="font-semibold text-xs text-[#ffffff] tracking-normal font-sans hidden sm:inline">
             Irminsul IDE
           </span>
