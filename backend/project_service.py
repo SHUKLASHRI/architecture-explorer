@@ -22,16 +22,11 @@ class ProjectService:
         self._cached_result: Optional[dict[str, Any]] = None
 
     def resolve_project_root(self, path: Optional[str] = None) -> str:
-        """Resolve project path to canonical absolute directory path."""
         p_str = (path or "").strip()
-        if not p_str:
+        if not p_str or p_str in (".", "default"):
             with self._lock:
                 if self._cached_project_path and os.path.isdir(self._cached_project_path):
                     return self._cached_project_path
-
-            bundled = os.path.join(self.repo_root, "sample_project")
-            if os.path.isdir(bundled):
-                return os.path.abspath(bundled)
             return os.path.abspath(os.getcwd())
 
         # Relative to repo root

@@ -4,7 +4,7 @@ import { IrminsulLogo } from './IrminsulLogo';
 import {
   FolderOpen,
   Code2,
-  Sparkles,
+  FilePlus,
   ArrowRight,
   X,
   CheckCircle2,
@@ -18,6 +18,8 @@ export const WelcomeModal: React.FC = () => {
     recentProjects,
     openSpotlight,
     openSettings,
+    saveFile,
+    projectPath,
   } = useExplorer();
 
   const [activeGuideIndex, setActiveGuideIndex] = useState(0);
@@ -142,16 +144,22 @@ export const WelcomeModal: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => {
-                    loadProject('sample_project');
-                    closeWelcome();
+                  onClick={async () => {
+                    const filename = prompt('Enter filename for new module (e.g. service.py):', 'module.py');
+                    if (filename?.trim()) {
+                      const cleanName = filename.trim();
+                      const filePath = cleanName.endsWith('.py') ? cleanName : `${cleanName}.py`;
+                      await saveFile(filePath, '"""New Python module."""\n\ndef main():\n    pass\n');
+                      await loadProject(projectPath, true);
+                      closeWelcome();
+                    }
                   }}
                   className="w-full flex items-center gap-3 px-3 py-2 rounded bg-[#252526] hover:bg-[#2a2d2e] border border-[#3e3e42] hover:border-[#007acc] text-left transition-colors group"
                 >
-                  <Sparkles size={16} className="text-[#cca700] group-hover:scale-110 transition-transform" />
+                  <FilePlus size={16} className="text-[#4ec9b0] group-hover:scale-110 transition-transform" />
                   <div>
-                    <div className="text-xs font-medium text-[#ffffff]">Open Sample Architecture</div>
-                    <div className="text-[10px] text-[#858585]">Explore multi-tier demo repository</div>
+                    <div className="text-xs font-medium text-[#ffffff]">New Python File...</div>
+                    <div className="text-[10px] text-[#858585]">Create a new Python file in workspace</div>
                   </div>
                 </button>
 

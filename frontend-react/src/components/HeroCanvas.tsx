@@ -836,15 +836,25 @@ export const HeroCanvas: React.FC = () => {
           ) : (
             <div className="bg-[#252526] border border-[#3e3e42] rounded-[3px] p-6 shadow-xl max-w-sm flex flex-col items-center gap-3">
               <FolderOpen size={28} className="text-[#858585]" />
-              <div className="text-xs font-semibold text-[#ffffff]">No Python Symbols Discovered</div>
-              <p className="text-[11px] text-[#858585] leading-relaxed">
-                No valid Python files were detected in this folder. Open another folder or select the sample project.
+              <div className="text-xs font-semibold text-[#ffffff]">No Python Symbols Found</div>
+              <p className="text-[11px] text-[#858585] leading-relaxed text-center">
+                No Python source files found in this workspace directory. Open a project folder to inspect its architecture.
               </p>
               <button
-                onClick={() => loadProject('sample_project', true)}
-                className="mt-2 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-1.5 rounded-[2px] text-xs transition-colors"
+                onClick={async () => {
+                  const pyApi = (window as any).pywebview?.api;
+                  if (pyApi?.choose_folder) {
+                    const chosen = await pyApi.choose_folder();
+                    if (chosen) loadProject(chosen);
+                  } else {
+                    const p = window.prompt('Enter path to Python workspace folder:', projectPath);
+                    if (p?.trim()) loadProject(p.trim());
+                  }
+                }}
+                className="mt-2 bg-[#007acc] hover:bg-[#0098ff] text-[#ffffff] font-medium px-4 py-1.5 rounded-[2px] text-xs transition-colors flex items-center gap-1.5"
               >
-                Load Sample Project
+                <FolderOpen size={13} />
+                <span>Open Folder...</span>
               </button>
             </div>
           )}

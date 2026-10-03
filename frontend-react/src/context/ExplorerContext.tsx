@@ -139,10 +139,16 @@ interface ExplorerContextType {
 
 const ExplorerContext = createContext<ExplorerContextType | null>(null);
 
-const DEFAULT_SAMPLE_PATH = 'sample_project';
+const DEFAULT_INITIAL_PATH = (() => {
+  try {
+    return localStorage.getItem('irminsul_last_workspace') || '.';
+  } catch {
+    return '.';
+  }
+})();
 
 export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [projectPath, setProjectPath] = useState<string>(DEFAULT_SAMPLE_PATH);
+  const [projectPath, setProjectPath] = useState<string>(DEFAULT_INITIAL_PATH);
   const [nodes, setNodes] = useState<GraphNode[]>([]);
   const [edges, setEdges] = useState<GraphEdge[]>([]);
   const [modules, setModules] = useState<ProjectModule[]>([]);
@@ -279,10 +285,7 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const saved = localStorage.getItem('irminsul_recent');
       if (saved) return JSON.parse(saved);
     } catch {}
-    return [
-      { path: 'sample_project', name: 'sample_project', lastOpened: 'Just now' },
-      { path: 'architecture-explorer', name: 'architecture-explorer (Self)', lastOpened: 'Today' },
-    ];
+    return [];
   });
 
   const addToRecentProjects = useCallback((p: string) => {
@@ -376,12 +379,19 @@ export const ExplorerProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           setDeadFunctions(data.diagnostics.dead_functions);
         }
 
-        // Auto-select a hero node if available
+        if (customPath && customPath !== projectPath) {
+          setProjectPath(customPath);
+          addToRecentProjects(customPath);
+          try {
+            localStorage.setItem('irminsul_last_workspace', customPath);
+          } catch {}
+        }
+
+        // Auto-select first node if available
         if (data.nodes && data.nodes.length > 0) {
-          const hero =
-            data.nodes.find((n) => n.name.includes('validate') || n.name.includes('auth')) ||
-            data.nodes[0];
-          setSelectedNode(hero);
+          setSelectedNode(data.nodes[0]);
+        } else {
+          setSelectedNode(null);
         }
       } catch (err: any) {
         setError(err.message || 'Failed to analyze project AST');
