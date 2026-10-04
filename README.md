@@ -1,7 +1,7 @@
 # Irminsul IDE — Python Architecture & Refactor Workbench
 
 [![Website](https://img.shields.io/badge/Live_Website-shuklashri.github.io%2Farchitecture--explorer-007acc?style=for-the-badge&logo=google-chrome&logoColor=white)](https://shuklashri.github.io/architecture-explorer/)
-[![Institution: MITS Gwalior](https://img.shields.io/badge/Institution-MITS%20Gwalior-4ec9b0.svg?style=for-the-badge)](https://web.mitsgwalior.in/)
+[![Author: Shrinath Shukla](https://img.shields.io/badge/Author-Shrinath%20Shukla-007acc?style=for-the-badge&logo=github)](https://github.com/SHUKLASHRI)
 [![Release](https://img.shields.io/badge/Release-v1.0.0-cca700.svg?style=for-the-badge)](https://github.com/SHUKLASHRI/architecture-explorer/releases)
 
 🌐 **Official Website**: [https://shuklashri.github.io/architecture-explorer/](https://shuklashri.github.io/architecture-explorer/)
@@ -89,9 +89,7 @@ This builds the production static assets directly into `../frontend/`, which are
 
 ---
 
-## Institution & Credits
+## Author & Ownership
 
-Developed at **Madhav Institute of Technology and Science (MITS), Gwalior**.
+Created, developed, and owned by **Shrinath Shukla** ([@SHUKLASHRI](https://github.com/SHUKLASHRI)). All rights reserved.
 
-## Project License
-Open Source &bull; MITS (Gwalior) Project

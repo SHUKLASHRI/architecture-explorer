@@ -16,11 +16,11 @@ VSVersionInfo(
       [
       StringTable(
         '040904b0',
-        [StringStruct('CompanyName', 'MITS (Gwalior)'),
+        [StringStruct('CompanyName', 'Shrinath Shukla'),
         StringStruct('FileDescription', 'Irminsul IDE - Python Architecture & Refactoring Workbench'),
         StringStruct('FileVersion', '1.0.0.0'),
         StringStruct('InternalName', 'IrminsulIDE'),
-        StringStruct('LegalCopyright', 'Developed at MITS (Gwalior). Open Source.'),
+        StringStruct('LegalCopyright', 'Copyright (c) 2026 Shrinath Shukla. All rights reserved.'),
         StringStruct('OriginalFilename', 'IrminsulIDE.exe'),
         StringStruct('ProductName', 'Irminsul IDE'),
         StringStruct('ProductVersion', '1.0.0.0')])
