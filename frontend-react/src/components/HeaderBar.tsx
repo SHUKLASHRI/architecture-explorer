@@ -683,7 +683,7 @@ export const HeaderBar: React.FC = () => {
               </button>
               <div className="border-t border-[#333333] my-1" />
               <a
-                href="https://github.com/SHUKLASHRI/architecture-explorer"
+                href="https://github.com/SHUKLASHRI/irminsul-ide"
                 target="_blank"
                 rel="noreferrer"
                 className="w-full flex items-center justify-between px-3 py-1.5 hover:bg-[#094771] hover:text-[#ffffff] text-left"

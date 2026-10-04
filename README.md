@@ -1,14 +1,14 @@
 # Irminsul IDE — Python Architecture & Refactor Workbench
 
-[![Website](https://img.shields.io/badge/Live_Website-shuklashri.github.io%2Farchitecture--explorer-007acc?style=for-the-badge&logo=google-chrome&logoColor=white)](https://shuklashri.github.io/architecture-explorer/)
+[![Website](https://img.shields.io/badge/Live_Website-shuklashri.github.io%2Firminsul--ide-007acc?style=for-the-badge&logo=google-chrome&logoColor=white)](https://shuklashri.github.io/irminsul-ide/)
 [![Author: Shrinath Shukla](https://img.shields.io/badge/Author-Shrinath%20Shukla-007acc?style=for-the-badge&logo=github)](https://github.com/SHUKLASHRI)
-[![Release](https://img.shields.io/badge/Release-v1.0.0-cca700.svg?style=for-the-badge)](https://github.com/SHUKLASHRI/architecture-explorer/releases)
+[![Release](https://img.shields.io/badge/Release-v1.0.0-cca700.svg?style=for-the-badge)](https://github.com/SHUKLASHRI/irminsul-ide/releases)
 
-🌐 **Official Website**: [https://shuklashri.github.io/architecture-explorer/](https://shuklashri.github.io/architecture-explorer/)
+🌐 **Official Website**: [https://shuklashri.github.io/irminsul-ide/](https://shuklashri.github.io/irminsul-ide/)
 
 Irminsul IDE is a desktop-grade architecture visualization and refactoring workbench for Python codebases. It performs deep, AST-based static analysis to map modules, symbols, call graphs, coupling metrics, and cyclomatic complexity into an interactive, infinite canvas with floating HUD panels.
 
-![Irminsul IDE](https://raw.githubusercontent.com/SHUKLASHRI/architecture-explorer/main/frontend/screenshot.png)
+![Irminsul IDE](https://raw.githubusercontent.com/SHUKLASHRI/irminsul-ide/main/frontend/screenshot.png)
 
 ---
 
@@ -45,8 +45,8 @@ Irminsul IDE is a desktop-grade architecture visualization and refactoring workb
 Clone the repository and install the Python dependencies:
 
 ```bash
-git clone https://github.com/SHUKLASHRI/architecture-explorer.git
-cd architecture-explorer
+git clone https://github.com/SHUKLASHRI/irminsul-ide.git
+cd irminsul-ide
 pip install -r requirements.txt
 ```
 
